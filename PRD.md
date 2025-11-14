@@ -1,6 +1,6 @@
 # Planning Guide
 
-MindPlay is a browser-based cognitive training platform featuring eight interactive psychological games designed to assess and strengthen memory, attention, processing speed, and cognitive flexibility through scientifically-grounded tasks.
+10XMindPlay is a browser-based cognitive training platform featuring eight interactive psychological games designed to assess and strengthen memory, attention, processing speed, and cognitive flexibility through scientifically-grounded tasks.
 
 **Experience Qualities**: 
 1. **Focused** - Interface eliminates distractions to maintain user concentration during cognitive assessments

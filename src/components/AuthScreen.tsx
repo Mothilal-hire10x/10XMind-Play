@@ -52,7 +52,9 @@ export function AuthScreen() {
           <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center mb-4">
             <Brain size={32} weight="bold" className="text-primary-foreground" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight">MindPlay</h1>
+          <h1 className="text-3xl font-bold text-foreground tracking-tight">
+            <span className="text-blue-600 dark:text-blue-400">10</span>XMindPlay
+          </h1>
           <p className="text-muted-foreground mt-2">Cognitive Training Platform</p>
         </div>
 

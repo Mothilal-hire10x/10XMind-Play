@@ -48,7 +48,9 @@ export function Dashboard({ onSelectGame, onViewResults }: DashboardProps) {
               <Brain size={24} weight="bold" className="text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">MindPlay</h1>
+              <h1 className="text-xl font-bold text-foreground">
+                <span className="text-blue-600 dark:text-blue-400">10</span>XMindPlay
+              </h1>
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
           </div>
