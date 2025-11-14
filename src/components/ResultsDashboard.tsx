@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ArrowLeft } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface ResultsDashboardProps {
   onBack: () => void
@@ -50,11 +51,12 @@ export function ResultsDashboard({ onBack }: ResultsDashboardProps) {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card">
-        <div className="max-w-7xl mx-auto px-4 py-4">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Button variant="ghost" onClick={onBack} className="gap-2">
             <ArrowLeft size={18} />
             Back to Dashboard
           </Button>
+          <ThemeToggle />
         </div>
       </header>
 

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Brain } from '@phosphor-icons/react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 export function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true)
@@ -43,6 +44,9 @@ export function AuthScreen() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
           <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center mb-4">

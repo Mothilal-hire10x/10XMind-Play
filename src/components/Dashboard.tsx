@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Brain, Eye, TreeStructure, Lightning, ChartLine, SignOut } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 const iconMap = {
   Brain,
@@ -52,6 +53,7 @@ export function Dashboard({ onSelectGame, onViewResults }: DashboardProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Button variant="outline" onClick={onViewResults} className="gap-2">
               <ChartLine size={18} />
               <span className="hidden sm:inline">Results</span>

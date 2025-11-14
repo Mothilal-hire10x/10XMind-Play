@@ -2,6 +2,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { CheckCircle, ArrowRight } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface GameResultsProps {
   gameName: string
@@ -25,6 +26,9 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <Card className="max-w-lg w-full">
         <CardHeader className="text-center">
           <div className="mx-auto w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mb-4">

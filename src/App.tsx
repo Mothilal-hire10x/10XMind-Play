@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AuthProvider, useAuth } from '@/lib/auth-context'
+import { ThemeProvider } from '@/lib/theme-context'
 import { useKV } from '@github/spark/hooks'
 import { GameResult, TrialResult } from '@/lib/types'
 import { AuthScreen } from '@/components/AuthScreen'
@@ -139,9 +140,11 @@ function AppContent() {
 
 function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

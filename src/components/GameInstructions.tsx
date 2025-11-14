@@ -2,6 +2,7 @@ import { getGameById } from '@/lib/games'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Play } from '@phosphor-icons/react'
+import { ThemeToggle } from '@/components/ThemeToggle'
 
 interface GameInstructionsProps {
   gameId: string
@@ -18,6 +19,9 @@ export function GameInstructions({ gameId, onStart, onBack }: GameInstructionsPr
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
       <Card className="max-w-2xl w-full">
         <CardHeader>
           <Button

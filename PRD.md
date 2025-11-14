@@ -19,6 +19,13 @@ MindPlay is a browser-based cognitive training platform featuring eight interact
 - **Progression**: Landing → Form input → Validation → Dashboard (stored session maintains login state)
 - **Success criteria**: User can create account, log in, and remain authenticated across page refreshes
 
+### Theme Switching
+- **Functionality**: Toggle between light and dark mode themes with persistent preference
+- **Purpose**: Reduces eye strain and provides comfortable viewing in different lighting conditions
+- **Trigger**: Theme toggle button (moon/sun icon) in header or top-right corner
+- **Progression**: Click toggle → Theme switches → Preference saved → Persists across sessions
+- **Success criteria**: Theme changes apply immediately, persist after page refresh, work on all screens
+
 ### Game Dashboard
 - **Functionality**: Grid display of 8 cognitive games with visual cards showing game type and brief description
 - **Purpose**: Provides clear navigation to all available cognitive assessments
