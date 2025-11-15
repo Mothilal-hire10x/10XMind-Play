@@ -13,11 +13,24 @@
 ## Essential Features
 
 ### User Authentication
-- **Functionality**: Email/password registration and login with persistent sessions
-- **Purpose**: Enables personalized result tracking and progress monitoring over time
+- **Functionality**: Email/password registration and login with persistent sessions, supporting two roles: Student and Admin
+- **Purpose**: Enables personalized result tracking for students and analytics access for administrators
 - **Trigger**: Landing page with login/signup forms
-- **Progression**: Landing → Form input → Validation → Dashboard (stored session maintains login state)
-- **Success criteria**: User can create account, log in, and remain authenticated across page refreshes
+- **Progression**: Landing → Form input → Validation → Dashboard (students) or Admin Dashboard (administrators)
+- **Success criteria**: User can create account, log in, remain authenticated across page refreshes, and access role-appropriate interface
+
+### Admin Authentication & Dashboard
+- **Functionality**: Dedicated admin account (admin@10xscale.ai / Jack@123) with analytics dashboard showing student progress
+- **Purpose**: Enables administrators to monitor student performance, track engagement, and identify learning trends
+- **Trigger**: Admin login credentials
+- **Progression**: Admin login → Analytics Dashboard → View student-based stats → View game-based stats → View overall metrics → Filter and analyze data
+- **Success criteria**: 
+  - Admin account auto-created on first app load
+  - Dashboard shows three tabs: Students, Games, Overall
+  - Student-based view displays individual performance metrics (score, accuracy, reaction time, games played, last activity)
+  - Game-based view shows statistics per cognitive game (times played, average performance)
+  - Overall view provides filterable aggregate statistics and recent activity feed
+  - All metrics update in real-time as students complete games
 
 ### Theme Switching
 - **Functionality**: Toggle between light and dark mode themes with persistent preference

@@ -27,6 +27,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false)
   }, [currentUserId, users])
 
+  useEffect(() => {
+    const initializeAdmin = () => {
+      const adminEmail = 'admin@10xscale.ai'
+      const adminPassword = 'Jack@123'
+      
+      const existingAdmin = Object.values(users || {}).find(u => u.user.email === adminEmail)
+      
+      if (!existingAdmin) {
+        const adminId = 'admin_default'
+        const adminUser: User = {
+          id: adminId,
+          email: adminEmail,
+          role: 'admin',
+          createdAt: Date.now()
+        }
+        
+        setUsers(current => ({
+          ...current,
+          [adminId]: { password: adminPassword, user: adminUser }
+        }))
+      }
+    }
+    
+    initializeAdmin()
+  }, [])
+
   const signup = async (email: string, password: string): Promise<boolean> => {
     const existingUser = Object.values(users || {}).find(u => u.user.email === email)
     if (existingUser) {
@@ -37,6 +63,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const newUser: User = {
       id: userId,
       email,
+      role: 'student',
       createdAt: Date.now()
     }
 

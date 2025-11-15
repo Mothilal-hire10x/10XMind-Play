@@ -5,6 +5,7 @@ import { useKV } from '@github/spark/hooks'
 import { GameResult, TrialResult } from '@/lib/types'
 import { AuthScreen } from '@/components/AuthScreen'
 import { Dashboard } from '@/components/Dashboard'
+import { AdminDashboard } from '@/components/AdminDashboard'
 import { GameInstructions } from '@/components/GameInstructions'
 import { GameResults } from '@/components/GameResults'
 import { ResultsDashboard } from '@/components/ResultsDashboard'
@@ -42,6 +43,10 @@ function AppContent() {
 
   if (!user) {
     return <AuthScreen />
+  }
+
+  if (user.role === 'admin') {
+    return <AdminDashboard />
   }
 
   const handleSelectGame = (gameId: string) => {
