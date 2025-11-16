@@ -20,20 +20,27 @@
 - **Success criteria**: User can create account, log in, remain authenticated across page refreshes, and access role-appropriate interface
 
 ### Admin Authentication & Dashboard
-- **Functionality**: Dedicated admin account (admin@10xscale.ai / Jack@123) with analytics dashboard showing student progress and export capabilities
-- **Purpose**: Enables administrators to monitor student performance, track engagement, identify learning trends, and generate downloadable reports
+- **Functionality**: Dedicated admin account (admin@10xscale.ai / Jack@123) with analytics dashboard showing student progress, export capabilities, and storage diagnostics
+- **Purpose**: Enables administrators to monitor student performance, track engagement, identify learning trends, generate downloadable reports, and verify data persistence
 - **Trigger**: Admin login credentials
-- **Progression**: Admin login → Analytics Dashboard → View student-based stats → View game-based stats → View overall metrics → Filter and analyze data → Export reports (CSV/PDF)
+- **Progression**: Admin login → Analytics Dashboard → View student-based stats → View game-based stats → View overall metrics → Check storage health → Filter and analyze data → Export reports (CSV/PDF) → Backup all data
 - **Success criteria**: 
   - Admin account auto-created on first app load
-  - Dashboard shows three tabs: Students, Games, Overall
+  - Dashboard shows four tabs: Students, Games, Overall, Storage
   - Student-based view displays individual performance metrics (score, accuracy, reaction time, games played, last activity)
   - Game-based view shows statistics per cognitive game (times played, average performance)
   - Overall view provides filterable aggregate statistics and recent activity feed
+  - Storage tab provides diagnostic tools to monitor data persistence and health
+  - Storage diagnostics show key-value store entries, sizes, and item counts
+  - Backup functionality allows downloading complete data as JSON
   - All metrics update in real-time as students complete games
   - Export functionality allows downloading reports in CSV and PDF formats
   - Multiple export types: detailed results, student summaries, and game summaries
   - Exports respect current filter selections (student, game)
+  - Downloaded files include timestamp in filename
+  - Toast notifications confirm successful downloads
+  - Handles empty data gracefully with appropriate messaging
+  - All data persists indefinitely using Spark's key-value store
 
 ### Theme Switching
 - **Functionality**: Toggle between light and dark mode themes with persistent preference

@@ -6,7 +6,7 @@ import { GAMES } from '@/lib/games'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple } from '@phosphor-icons/react'
+import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive } from '@phosphor-icons/react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion } from 'framer-motion'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -20,6 +20,7 @@ import {
   downloadGameSummaryCSV,
   ExportData 
 } from '@/lib/export-utils'
+import { getStorageInfo, exportAllData, downloadJSON } from '@/lib/storage-utils'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -36,6 +37,8 @@ export function AdminDashboard() {
   const [gameResults] = useKV<GameResult[]>('game-results', [])
   const [selectedStudent, setSelectedStudent] = useState<string>('all')
   const [selectedGame, setSelectedGame] = useState<string>('all')
+  const [storageInfo, setStorageInfo] = useState<Record<string, any> | null>(null)
+  const [loadingStorage, setLoadingStorage] = useState(false)
 
   const students = useMemo(() => {
     return Object.values(users || {})
@@ -192,6 +195,31 @@ export function AdminDashboard() {
     }
   }
 
+  const handleLoadStorageInfo = async () => {
+    setLoadingStorage(true)
+    try {
+      const info = await getStorageInfo()
+      setStorageInfo(info)
+      toast.success('Storage information loaded')
+    } catch (error) {
+      toast.error('Failed to load storage information')
+      console.error('Storage info error:', error)
+    } finally {
+      setLoadingStorage(false)
+    }
+  }
+
+  const handleExportAllData = async () => {
+    try {
+      const data = await exportAllData()
+      downloadJSON(data, `10xmindplay-backup-${new Date().toISOString().split('T')[0]}.json`)
+      toast.success('Complete data backup downloaded')
+    } catch (error) {
+      toast.error('Failed to export data')
+      console.error('Export data error:', error)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
@@ -324,10 +352,11 @@ export function AdminDashboard() {
             </div>
 
             <Tabs defaultValue="students" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
+              <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
                 <TabsTrigger value="students">Students</TabsTrigger>
                 <TabsTrigger value="games">Games</TabsTrigger>
                 <TabsTrigger value="overall">Overall</TabsTrigger>
+                <TabsTrigger value="storage">Storage</TabsTrigger>
               </TabsList>
 
               <TabsContent value="students" className="space-y-4">
@@ -665,6 +694,173 @@ export function AdminDashboard() {
                     </CardContent>
                   </Card>
                 </div>
+              </TabsContent>
+
+              <TabsContent value="storage" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Database size={20} className="text-primary" />
+                          Storage Diagnostics
+                        </CardTitle>
+                        <CardDescription>Monitor data persistence and storage health</CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={handleLoadStorageInfo}
+                          disabled={loadingStorage}
+                          className="gap-2"
+                        >
+                          <HardDrive size={16} />
+                          {loadingStorage ? 'Loading...' : 'Check Storage'}
+                        </Button>
+                        <Button 
+                          variant="default" 
+                          size="sm" 
+                          onClick={handleExportAllData}
+                          className="gap-2"
+                        >
+                          <DownloadSimple size={16} />
+                          Backup All Data
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <Card className="border-2">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                              Registered Students
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold text-primary">{students.length}</div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Total user accounts
+                            </p>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border-2">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                              Game Results
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold text-blue-600">{(gameResults || []).length}</div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Stored game sessions
+                            </p>
+                          </CardContent>
+                        </Card>
+
+                        <Card className="border-2">
+                          <CardHeader className="pb-3">
+                            <CardTitle className="text-sm font-medium text-muted-foreground">
+                              Storage Keys
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="text-3xl font-bold text-green-600">
+                              {storageInfo ? Object.keys(storageInfo).length : '-'}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              KV store entries
+                            </p>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      <Separator />
+
+                      <div className="space-y-4">
+                        <h3 className="font-semibold text-lg">Storage Information</h3>
+                        
+                        {!storageInfo ? (
+                          <div className="text-center py-12 text-muted-foreground">
+                            <Database size={48} className="mx-auto mb-4 opacity-20" />
+                            <p className="mb-4">Click "Check Storage" to view detailed storage information</p>
+                            <p className="text-xs">
+                              This will show all persistent data keys and their sizes
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            {Object.entries(storageInfo).map(([key, info]) => (
+                              <motion.div
+                                key={key}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                className="p-4 rounded-lg border bg-card/50"
+                              >
+                                <div className="flex items-start justify-between mb-2">
+                                  <div className="font-mono text-sm font-semibold text-primary">
+                                    {key}
+                                  </div>
+                                  <Badge variant="outline">
+                                    {info.type}
+                                  </Badge>
+                                </div>
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Items</p>
+                                    <p className="font-semibold">{info.itemCount}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-muted-foreground text-xs">Size</p>
+                                    <p className="font-semibold">{(info.size / 1024).toFixed(2)} KB</p>
+                                  </div>
+                                  <div className="col-span-2 md:col-span-1">
+                                    <p className="text-muted-foreground text-xs">Preview</p>
+                                    <p className="font-mono text-xs truncate">{info.preview}</p>
+                                  </div>
+                                </div>
+                              </motion.div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <Separator />
+
+                      <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                        <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
+                          <HardDrive size={16} />
+                          About Storage
+                        </h4>
+                        <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
+                          <li className="flex gap-2">
+                            <span className="text-blue-600 dark:text-blue-400">•</span>
+                            <span>All data is stored using Spark's persistent key-value store</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-blue-600 dark:text-blue-400">•</span>
+                            <span>Student accounts and game results persist indefinitely</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-blue-600 dark:text-blue-400">•</span>
+                            <span>Data survives page refreshes and app restarts</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-blue-600 dark:text-blue-400">•</span>
+                            <span>Use "Backup All Data" to download a complete JSON backup</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-blue-600 dark:text-blue-400">•</span>
+                            <span>Storage uses browser-independent persistence tied to your Spark app</span>
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </TabsContent>
             </Tabs>
           </motion.div>

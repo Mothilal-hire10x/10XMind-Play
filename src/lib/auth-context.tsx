@@ -44,14 +44,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         setUsers(current => ({
-          ...current,
+          ...(current || {}),
           [adminId]: { password: adminPassword, user: adminUser }
         }))
       }
     }
     
-    initializeAdmin()
-  }, [])
+    if (users !== undefined) {
+      initializeAdmin()
+    }
+  }, [users, setUsers])
 
   const signup = async (email: string, password: string): Promise<boolean> => {
     const existingUser = Object.values(users || {}).find(u => u.user.email === email)
@@ -68,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     setUsers(current => ({
-      ...current,
+      ...(current || {}),
       [userId]: { password, user: newUser }
     }))
     setCurrentUserId(userId)
