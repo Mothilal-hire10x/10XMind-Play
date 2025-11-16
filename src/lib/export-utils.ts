@@ -33,10 +33,11 @@ export function generateCSV(data: ExportData): string {
   const rows = filteredResults.map(result => {
     const student = students.find(s => s.id === result.userId)
     const game = GAMES.find(g => g.id === result.gameId)
+    const studentEmail = student?.email || result.userEmail || 'Unknown'
     
     return [
       new Date(result.timestamp).toLocaleString(),
-      student?.email || 'Unknown',
+      studentEmail,
       game?.name || 'Unknown',
       result.score.toFixed(2),
       result.accuracy.toFixed(2),

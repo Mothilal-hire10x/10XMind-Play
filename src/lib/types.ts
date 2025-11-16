@@ -8,6 +8,7 @@ export interface User {
 export interface GameResult {
   id: string
   userId: string
+  userEmail?: string
   gameId: string
   score: number
   reactionTime?: number

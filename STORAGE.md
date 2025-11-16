@@ -17,8 +17,9 @@
 2. **`game-results`** - Stores all game session results
    - Type: Array
    - Structure: `GameResult[]`
-   - Contains: User ID, game ID, scores, accuracy, reaction times, timestamps
+   - Contains: User ID, **user email (backup)**, game ID, scores, accuracy, reaction times, timestamps
    - Persistence: Permanent
+   - **Note**: As of the latest update, each game result includes the student's email as a backup field to ensure student names always display correctly even if user accounts are modified
 
 3. **`currentUserId`** - Stores the currently logged-in user
    - Type: String (nullable)
@@ -72,6 +73,17 @@ const keys = await window.spark.kv.keys()
 ✅ **Automatic backups** - Admin can export full data backups
 
 ## Common Issues and Solutions
+
+### Issue: "Unknown Student" showing in admin dashboard
+
+**Root Cause**: In previous versions, game results only stored user IDs without email backup. If the student lookup failed, it would show "Unknown Student".
+
+**Solution (Fixed in Latest Version)**: 
+- All new game results now include the student's email address as a backup field (`userEmail`)
+- Admin dashboard now uses this backup email if the user account lookup fails
+- This ensures student names always display correctly, even if there are temporary state loading issues
+
+**For existing data**: Old game results without the email backup may still show "Unknown Student" if the corresponding user account cannot be found.
 
 ### Issue: Student data disappearing
 
@@ -190,6 +202,7 @@ Administrators can monitor storage health via the **Storage** tab in the admin d
 {
   "id": "result_1234567890_xyz789",
   "userId": "user_1234567890_abc123",
+  "userEmail": "student@example.com",
   "gameId": "stroop",
   "score": 850,
   "accuracy": 95.5,
@@ -200,6 +213,8 @@ Administrators can monitor storage health via the **Storage** tab in the admin d
   }
 }
 ```
+
+**Note**: The `userEmail` field is included as a backup to ensure student identification even if the user account lookup fails.
 
 ## Support
 

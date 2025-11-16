@@ -635,6 +635,7 @@ export function AdminDashboard() {
                         {filteredResults.slice(-10).reverse().map((result, index) => {
                           const student = students.find(s => s.id === result.userId)
                           const game = GAMES.find(g => g.id === result.gameId)
+                          const studentEmail = student?.email || result.userEmail || 'Unknown Student'
                           
                           return (
                             <motion.div
@@ -647,7 +648,7 @@ export function AdminDashboard() {
                               <div className="flex-1">
                                 <p className="font-semibold text-sm">{game?.name || 'Unknown Game'}</p>
                                 <p className="text-xs text-muted-foreground">
-                                  {student?.email || 'Unknown Student'}
+                                  {studentEmail}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
                                   {formatDate(result.timestamp)}
@@ -732,6 +733,18 @@ export function AdminDashboard() {
               </TabsContent>
 
               <TabsContent value="storage" className="space-y-4">
+                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4">
+                  <h4 className="font-semibold text-green-900 dark:text-green-100 mb-2 flex items-center gap-2">
+                    <Database size={16} />
+                    Data Persistence Status: Active ✓
+                  </h4>
+                  <p className="text-sm text-green-800 dark:text-green-200">
+                    All student accounts and game results are stored permanently using Spark's persistent storage. 
+                    Data will <strong>NOT be automatically deleted</strong> and survives page refreshes and app restarts. 
+                    Only the "Reset Storage" button will clear data.
+                  </p>
+                </div>
+
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -877,28 +890,32 @@ export function AdminDashboard() {
                       <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                         <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
                           <HardDrive size={16} />
-                          About Storage
+                          About Storage & Data Persistence
                         </h4>
                         <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
                           <li className="flex gap-2">
                             <span className="text-blue-600 dark:text-blue-400">•</span>
-                            <span>All data is stored using Spark's persistent key-value store</span>
+                            <span>All data is stored using Spark's persistent key-value store (not browser localStorage)</span>
                           </li>
                           <li className="flex gap-2">
                             <span className="text-blue-600 dark:text-blue-400">•</span>
-                            <span>Student accounts and game results persist indefinitely</span>
+                            <span><strong>Student accounts and game results persist indefinitely and survive page refreshes</strong></span>
                           </li>
                           <li className="flex gap-2">
                             <span className="text-blue-600 dark:text-blue-400">•</span>
-                            <span>Data survives page refreshes and app restarts</span>
+                            <span>Data will NOT be automatically deleted - it remains until you explicitly use "Reset Storage"</span>
                           </li>
                           <li className="flex gap-2">
                             <span className="text-blue-600 dark:text-blue-400">•</span>
-                            <span>Use "Backup All Data" to download a complete JSON backup</span>
+                            <span>Use "Backup All Data" regularly to download a complete JSON backup for safety</span>
                           </li>
                           <li className="flex gap-2">
                             <span className="text-blue-600 dark:text-blue-400">•</span>
-                            <span>Storage uses browser-independent persistence tied to your Spark app</span>
+                            <span>Storage uses Spark's cloud-based persistence tied to your app instance</span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="text-blue-600 dark:text-blue-400 font-bold">⚠</span>
+                            <span className="font-semibold">Only the "Reset Storage" button will delete student data - use with caution!</span>
                           </li>
                         </ul>
                       </div>

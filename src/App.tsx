@@ -62,6 +62,7 @@ function AppContent() {
     const result: GameResult = {
       id: `result_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       userId: user.id,
+      userEmail: user.email,
       gameId: selectedGameId!,
       score: summary.score,
       reactionTime: summary.reactionTime,
