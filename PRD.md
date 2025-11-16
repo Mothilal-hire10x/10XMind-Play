@@ -20,10 +20,10 @@
 - **Success criteria**: User can create account, log in, remain authenticated across page refreshes, and access role-appropriate interface
 
 ### Admin Authentication & Dashboard
-- **Functionality**: Dedicated admin account (admin@10xscale.ai / Jack@123) with analytics dashboard showing student progress
-- **Purpose**: Enables administrators to monitor student performance, track engagement, and identify learning trends
+- **Functionality**: Dedicated admin account (admin@10xscale.ai / Jack@123) with analytics dashboard showing student progress and export capabilities
+- **Purpose**: Enables administrators to monitor student performance, track engagement, identify learning trends, and generate downloadable reports
 - **Trigger**: Admin login credentials
-- **Progression**: Admin login → Analytics Dashboard → View student-based stats → View game-based stats → View overall metrics → Filter and analyze data
+- **Progression**: Admin login → Analytics Dashboard → View student-based stats → View game-based stats → View overall metrics → Filter and analyze data → Export reports (CSV/PDF)
 - **Success criteria**: 
   - Admin account auto-created on first app load
   - Dashboard shows three tabs: Students, Games, Overall
@@ -31,6 +31,9 @@
   - Game-based view shows statistics per cognitive game (times played, average performance)
   - Overall view provides filterable aggregate statistics and recent activity feed
   - All metrics update in real-time as students complete games
+  - Export functionality allows downloading reports in CSV and PDF formats
+  - Multiple export types: detailed results, student summaries, and game summaries
+  - Exports respect current filter selections (student, game)
 
 ### Theme Switching
 - **Functionality**: Toggle between light and dark mode themes with persistent preference
@@ -108,6 +111,21 @@
 - **Trigger**: "View Results" button from main dashboard
 - **Progression**: Dashboard → Results view → Filter by game → See metrics table/chart → Return to dashboard
 - **Success criteria**: All completed games show historical data with timestamps
+
+### Export Functionality (Admin Only)
+- **Functionality**: Generate and download student progress reports in CSV or PDF format
+- **Purpose**: Enables administrators to share, analyze, and archive performance data outside the platform
+- **Trigger**: "Export Reports" dropdown in admin dashboard header, or contextual export buttons in each tab
+- **Progression**: Select filters (student/game) → Click export button → Choose format (CSV/PDF) → File downloads → Success notification
+- **Success criteria**: 
+  - Export button accessible from admin dashboard header and individual tabs
+  - Four export types available: Detailed Report (CSV), Detailed Report (PDF), Student Summary (CSV), Game Summary (CSV)
+  - PDF includes formatted tables, summary statistics, headers/footers, and branding
+  - CSV files use proper formatting with headers and quoted fields
+  - Exports respect current filter selections (student, game, date range)
+  - Downloaded files include timestamp in filename
+  - Toast notifications confirm successful downloads
+  - Handles empty data gracefully with appropriate messaging
 
 ## Edge Case Handling
 

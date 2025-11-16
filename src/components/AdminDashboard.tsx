@@ -6,13 +6,29 @@ import { GAMES } from '@/lib/games'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users } from '@phosphor-icons/react'
+import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple } from '@phosphor-icons/react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion } from 'framer-motion'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
+import { 
+  downloadCSV, 
+  downloadPDF, 
+  downloadStudentSummaryCSV, 
+  downloadGameSummaryCSV,
+  ExportData 
+} from '@/lib/export-utils'
+import { toast } from 'sonner'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export function AdminDashboard() {
   const { logout } = useAuth()
@@ -143,6 +159,39 @@ export function AdminDashboard() {
     })
   }
 
+  const handleExport = (type: 'csv' | 'pdf' | 'student-csv' | 'game-csv') => {
+    const exportData: ExportData = {
+      students,
+      results: gameResults || [],
+      selectedStudent,
+      selectedGame
+    }
+
+    try {
+      switch (type) {
+        case 'csv':
+          downloadCSV(exportData, `progress-report-${new Date().toISOString().split('T')[0]}.csv`)
+          toast.success('CSV report downloaded successfully')
+          break
+        case 'pdf':
+          downloadPDF(exportData, `progress-report-${new Date().toISOString().split('T')[0]}.pdf`)
+          toast.success('PDF report generated successfully')
+          break
+        case 'student-csv':
+          downloadStudentSummaryCSV(exportData, `student-summary-${new Date().toISOString().split('T')[0]}.csv`)
+          toast.success('Student summary CSV downloaded')
+          break
+        case 'game-csv':
+          downloadGameSummaryCSV(exportData, `game-summary-${new Date().toISOString().split('T')[0]}.csv`)
+          toast.success('Game summary CSV downloaded')
+          break
+      }
+    } catch (error) {
+      toast.error('Failed to generate report')
+      console.error('Export error:', error)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
@@ -167,6 +216,35 @@ export function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="default" className="gap-2 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-700">
+                    <DownloadSimple size={16} weight="bold" />
+                    Export Reports
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2 cursor-pointer">
+                    <FileCsv size={16} className="text-green-600" />
+                    <span>Detailed Report (CSV)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2 cursor-pointer">
+                    <FilePdf size={16} className="text-red-600" />
+                    <span>Detailed Report (PDF)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => handleExport('student-csv')} className="gap-2 cursor-pointer">
+                    <FileCsv size={16} className="text-blue-600" />
+                    <span>Student Summary (CSV)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleExport('game-csv')} className="gap-2 cursor-pointer">
+                    <FileCsv size={16} className="text-purple-600" />
+                    <span>Game Summary (CSV)</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
               <ThemeToggle />
               <Button variant="outline" onClick={logout} className="gap-2">
                 <SignOut size={16} />
@@ -255,8 +333,21 @@ export function AdminDashboard() {
               <TabsContent value="students" className="space-y-4">
                 <Card>
                   <CardHeader>
-                    <CardTitle>Student Performance</CardTitle>
-                    <CardDescription>Individual student progress and statistics</CardDescription>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle>Student Performance</CardTitle>
+                        <CardDescription>Individual student progress and statistics</CardDescription>
+                      </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={() => handleExport('student-csv')}
+                        className="gap-2"
+                      >
+                        <FileCsv size={16} className="text-green-600" />
+                        Export CSV
+                      </Button>
+                    </div>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
@@ -340,6 +431,15 @@ export function AdminDashboard() {
                       ))}
                     </SelectContent>
                   </Select>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleExport('game-csv')}
+                    className="gap-2 sm:ml-auto"
+                  >
+                    <FileCsv size={16} className="text-green-600" />
+                    Export CSV
+                  </Button>
                 </div>
 
                 <Card>
@@ -437,6 +537,27 @@ export function AdminDashboard() {
                       ))}
                     </SelectContent>
                   </Select>
+
+                  <div className="flex gap-2 sm:ml-auto">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleExport('csv')}
+                      className="gap-2"
+                    >
+                      <FileCsv size={16} className="text-green-600" />
+                      CSV
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => handleExport('pdf')}
+                      className="gap-2"
+                    >
+                      <FilePdf size={16} className="text-red-600" />
+                      PDF
+                    </Button>
+                  </div>
                 </div>
 
                 <div className="grid gap-6 md:grid-cols-2">
