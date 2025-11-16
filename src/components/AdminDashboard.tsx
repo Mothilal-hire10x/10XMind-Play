@@ -6,7 +6,7 @@ import { GAMES } from '@/lib/games'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive } from '@phosphor-icons/react'
+import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive, Trash, Warning } from '@phosphor-icons/react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion } from 'framer-motion'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -30,15 +30,26 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 export function AdminDashboard() {
   const { logout } = useAuth()
-  const [users] = useKV<Record<string, { password: string; user: User }>>('users', {})
-  const [gameResults] = useKV<GameResult[]>('game-results', [])
+  const [users, setUsers, deleteUsers] = useKV<Record<string, { password: string; user: User }>>('users', {})
+  const [gameResults, setGameResults, deleteGameResults] = useKV<GameResult[]>('game-results', [])
   const [selectedStudent, setSelectedStudent] = useState<string>('all')
   const [selectedGame, setSelectedGame] = useState<string>('all')
   const [storageInfo, setStorageInfo] = useState<Record<string, any> | null>(null)
   const [loadingStorage, setLoadingStorage] = useState(false)
+  const [showResetDialog, setShowResetDialog] = useState(false)
 
   const students = useMemo(() => {
     return Object.values(users || {})
@@ -217,6 +228,30 @@ export function AdminDashboard() {
     } catch (error) {
       toast.error('Failed to export data')
       console.error('Export data error:', error)
+    }
+  }
+
+  const handleResetStorage = async () => {
+    try {
+      deleteUsers()
+      deleteGameResults()
+      
+      const allKeys = await window.spark.kv.keys()
+      for (const key of allKeys) {
+        if (key !== 'users' && key !== 'game-results') {
+          await window.spark.kv.delete(key)
+        }
+      }
+      
+      setStorageInfo(null)
+      setSelectedStudent('all')
+      setSelectedGame('all')
+      setShowResetDialog(false)
+      
+      toast.success('All storage data has been cleared successfully')
+    } catch (error) {
+      toast.error('Failed to reset storage')
+      console.error('Reset storage error:', error)
     }
   }
 
@@ -727,6 +762,15 @@ export function AdminDashboard() {
                           <DownloadSimple size={16} />
                           Backup All Data
                         </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="sm" 
+                          onClick={() => setShowResetDialog(true)}
+                          className="gap-2"
+                        >
+                          <Trash size={16} />
+                          Reset Storage
+                        </Button>
                       </div>
                     </div>
                   </CardHeader>
@@ -866,6 +910,48 @@ export function AdminDashboard() {
           </motion.div>
         </main>
       </div>
+
+      <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Warning size={24} weight="bold" />
+              Reset All Storage?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3 pt-2">
+              <p className="font-semibold text-foreground">
+                This action will permanently delete:
+              </p>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-start gap-2">
+                  <span className="text-destructive font-bold">•</span>
+                  <span>All student accounts and login credentials</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-destructive font-bold">•</span>
+                  <span>All game results and performance data</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-destructive font-bold">•</span>
+                  <span>All stored records and analytics information</span>
+                </li>
+              </ul>
+              <p className="font-semibold text-destructive pt-2">
+                This cannot be undone! Consider backing up data first.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleResetStorage}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Yes, Reset Everything
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
