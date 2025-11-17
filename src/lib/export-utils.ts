@@ -1,6 +1,6 @@
-import jsPDF from 'jspdf'
-import { GameResult, User } from './types'
-import { GAMES } from './games'
+import jsPDF from 'jspdf';
+import { GameResult, User } from './types';
+import { GAMES } from './games';
 
 export interface ExportData {
   students: User[]
