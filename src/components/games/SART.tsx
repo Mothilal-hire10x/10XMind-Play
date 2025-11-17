@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
-import { X } from '@phosphor-icons/react'
+import { Badge } from '@/components/ui/badge'
+import { X, CheckCircle, XCircle, Warning } from '@phosphor-icons/react'
 import { TrialResult } from '@/lib/types'
+import { motion, AnimatePresence } from 'framer-motion'
 
 interface SARTProps {
   onComplete: (results: TrialResult[], summary: { score: number; accuracy: number; reactionTime: number }) => void
@@ -20,6 +22,7 @@ export function SART({ onComplete, onExit }: SARTProps) {
   const [results, setResults] = useState<TrialResult[]>([])
   const [responded, setResponded] = useState(false)
   const [startTime, setStartTime] = useState(0)
+  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null)
 
   const startNextTrial = useCallback(() => {
     if (currentTrial >= TOTAL_TRIALS) {
@@ -37,9 +40,10 @@ export function SART({ onComplete, onExit }: SARTProps) {
     }
 
     setResponded(false)
+    setFeedback(null)
     const digit = Math.floor(Math.random() * 9) + 1
     setCurrentDigit(digit)
-    setStartTime(Date.now())
+    setStartTime(performance.now())
 
     setTimeout(() => {
       setCurrentDigit(null)
@@ -48,15 +52,20 @@ export function SART({ onComplete, onExit }: SARTProps) {
         const isNoGo = digit === NO_GO_DIGIT
         const correct = isNoGo ? !responded : responded
         
+        setFeedback(correct ? 'correct' : 'incorrect')
+        
         setResults(prev => [...prev, {
           stimulus: digit.toString(),
           response: responded ? 'SPACE' : null,
           correct,
-          reactionTime: responded ? Date.now() - startTime : 0,
+          reactionTime: responded ? performance.now() - startTime : 0,
           trialType: isNoGo ? 'no-go' : 'go'
         }])
         
-        setCurrentTrial(prev => prev + 1)
+        setTimeout(() => {
+          setCurrentTrial(prev => prev + 1)
+          setFeedback(null)
+        }, 200)
       }, ISI - STIMULUS_DURATION)
     }, STIMULUS_DURATION)
   }, [currentTrial, responded, results, startTime, onComplete])
@@ -66,13 +75,13 @@ export function SART({ onComplete, onExit }: SARTProps) {
   }, [])
 
   useEffect(() => {
-    if (currentDigit === null && currentTrial < TOTAL_TRIALS) {
+    if (currentDigit === null && currentTrial < TOTAL_TRIALS && results.length === currentTrial) {
       const timer = setTimeout(() => {
         startNextTrial()
       }, ISI)
       return () => clearTimeout(timer)
     }
-  }, [currentDigit, currentTrial, startNextTrial])
+  }, [currentDigit, currentTrial, results.length, startNextTrial])
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
     if (event.code === 'Space' && currentDigit !== null && !responded) {
@@ -86,49 +95,130 @@ export function SART({ onComplete, onExit }: SARTProps) {
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [handleKeyPress])
 
-  const commissionErrors = results.filter(r => r.trialType === 'no-go' && r.response !== null).length
-  const omissionErrors = results.filter(r => r.trialType === 'go' && r.response === null).length
+  const stats = useMemo(() => {
+    const commissionErrors = results.filter(r => r.trialType === 'no-go' && r.response !== null).length
+    const omissionErrors = results.filter(r => r.trialType === 'go' && r.response === null).length
+    const correct = results.filter(r => r.correct).length
+    const total = results.length
+    return {
+      commissionErrors,
+      omissionErrors,
+      accuracy: total > 0 ? Math.round((correct / total) * 100) : 0
+    }
+  }, [results])
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="p-4 border-b border-border flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-destructive/5 flex flex-col">
+      <div className="p-6 border-b border-border/50 backdrop-blur-sm bg-card/50 flex items-center justify-between">
         <div className="flex items-center gap-4 flex-1">
           <div className="flex-1">
-            <Progress value={(currentTrial / TOTAL_TRIALS) * 100} className="h-2" />
-            <p className="text-sm text-muted-foreground mt-2">
+            <Progress value={(currentTrial / TOTAL_TRIALS) * 100} className="h-2 mb-2" />
+            <p className="text-sm text-muted-foreground">
               Trial {currentTrial} of {TOTAL_TRIALS}
             </p>
           </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Commission</p>
-            <p className="text-lg font-bold text-destructive">{commissionErrors}</p>
-          </div>
-          <div className="text-center">
-            <p className="text-xs text-muted-foreground">Omission</p>
-            <p className="text-lg font-bold text-destructive">{omissionErrors}</p>
-          </div>
+          <Badge variant="outline" className="gap-2 px-3 py-2">
+            <CheckCircle size={16} weight="fill" className="text-success" />
+            <div className="flex flex-col items-start">
+              <span className="text-xs text-muted-foreground">Accuracy</span>
+              <span className="text-lg font-bold text-foreground">{stats.accuracy}%</span>
+            </div>
+          </Badge>
+          <Badge variant="outline" className="gap-2 px-3 py-2">
+            <Warning size={16} weight="fill" className="text-destructive" />
+            <div className="flex flex-col items-start">
+              <span className="text-xs text-muted-foreground">Commission</span>
+              <span className="text-lg font-bold text-destructive">{stats.commissionErrors}</span>
+            </div>
+          </Badge>
+          <Badge variant="outline" className="gap-2 px-3 py-2">
+            <XCircle size={16} weight="fill" className="text-destructive" />
+            <div className="flex flex-col items-start">
+              <span className="text-xs text-muted-foreground">Omission</span>
+              <span className="text-lg font-bold text-destructive">{stats.omissionErrors}</span>
+            </div>
+          </Badge>
         </div>
         <Button variant="ghost" size="icon" onClick={onExit} className="ml-4">
           <X size={24} />
         </Button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center">
-        {currentDigit !== null && (
-          <div className="text-9xl font-bold text-foreground">
-            {currentDigit}
-          </div>
-        )}
+      <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+        <AnimatePresence mode="wait">
+          {currentDigit !== null && (
+            <motion.div
+              key={`digit-${currentTrial}-${currentDigit}`}
+              initial={{ scale: 0, rotateY: -180, opacity: 0 }}
+              animate={{ scale: 1, rotateY: 0, opacity: 1 }}
+              exit={{ scale: 0, rotateY: 180, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20, duration: 0.15 }}
+              className={`relative ${
+                currentDigit === NO_GO_DIGIT 
+                  ? 'text-destructive' 
+                  : 'text-foreground'
+              }`}
+            >
+              <div className={`text-[12rem] font-black ${
+                currentDigit === NO_GO_DIGIT ? 'animate-pulse' : ''
+              }`}>
+                {currentDigit}
+              </div>
+              {currentDigit === NO_GO_DIGIT && (
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  className="absolute inset-0 flex items-center justify-center"
+                >
+                  <div className="w-64 h-64 rounded-full border-8 border-destructive opacity-30 animate-ping" />
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {feedback && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.5, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.5, y: -50 }}
+              className={`absolute top-20 px-6 py-3 rounded-full font-semibold shadow-lg ${
+                feedback === 'correct' 
+                  ? 'bg-success text-white' 
+                  : 'bg-destructive text-white'
+              }`}
+            >
+              {feedback === 'correct' ? '✓' : '✗'}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      <div className="p-6 border-t border-border bg-card text-center">
-        <div className="max-w-md mx-auto">
-          <kbd className="px-6 py-4 bg-muted rounded text-xl font-mono block mb-2">SPACE</kbd>
-          <p className="text-sm text-muted-foreground">
-            Press SPACE for all numbers EXCEPT {NO_GO_DIGIT}
-          </p>
+      <motion.div
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="p-6 border-t border-border/50 backdrop-blur-sm bg-card/50"
+      >
+        <div className="max-w-md mx-auto text-center space-y-4">
+          <motion.div
+            whileHover={{ scale: 1.05 }}
+            className="inline-block"
+          >
+            <kbd className="px-8 py-4 bg-gradient-to-br from-card to-muted rounded-lg text-3xl font-mono font-bold block shadow-lg border-2 border-border">
+              SPACE
+            </kbd>
+          </motion.div>
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              Press <strong>SPACE</strong> for all numbers
+            </p>
+            <p className="text-sm font-bold text-destructive">
+              EXCEPT for the number {NO_GO_DIGIT}!
+            </p>
+          </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
