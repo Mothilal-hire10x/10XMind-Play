@@ -2,7 +2,7 @@ import { useAuth } from '@/lib/auth-context'
 import { GAMES } from '@/lib/games'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Brain, Eye, TreeStructure, Lightning, ChartLine, SignOut, Sparkle, PlayCircle } from '@phosphor-icons/react'
+import { Brain, Eye, TreeStructure, Lightning, ChartLine, SignOut, Sparkle, PlayCircle, Cube, Ear } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion } from 'framer-motion'
@@ -11,7 +11,9 @@ const iconMap = {
   Brain,
   Eye,
   TreeStructure,
-  Lightning
+  Lightning,
+  Cube,
+  Ear
 }
 
 interface DashboardProps {

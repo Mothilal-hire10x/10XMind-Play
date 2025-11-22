@@ -1,5 +1,6 @@
-import { useKV } from '@github/spark/hooks'
+import { useState, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
+import { resultsAPI } from '@/lib/api-client'
 import { GameResult } from '@/lib/types'
 import { GAMES } from '@/lib/games'
 import { Button } from '@/components/ui/button'
@@ -14,11 +15,48 @@ interface ResultsDashboardProps {
   onBack: () => void
 }
 
+// Helper to convert API response to GameResult
+function apiToGameResult(apiResult: any): GameResult {
+  return {
+    id: apiResult.id,
+    userId: apiResult.userId,
+    userEmail: '', // Not returned by API
+    gameId: apiResult.gameId,
+    score: apiResult.score,
+    reactionTime: apiResult.reactionTime,
+    accuracy: apiResult.accuracy,
+    timestamp: apiResult.completedAt,
+    details: apiResult.details
+  }
+}
+
 export function ResultsDashboard({ onBack }: ResultsDashboardProps) {
   const { user } = useAuth()
-  const [results] = useKV<GameResult[]>('game-results', [])
+  const [userResults, setUserResults] = useState<GameResult[]>([])
+  const [isLoading, setIsLoading] = useState(true)
 
-  const userResults = results?.filter(r => r.userId === user?.id) || []
+  useEffect(() => {
+    const fetchResults = async () => {
+      try {
+        const results = await resultsAPI.getResults()
+        setUserResults(results.map(apiToGameResult))
+      } catch (error) {
+        console.error('Failed to fetch results:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchResults()
+  }, [])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <p className="text-muted-foreground">Loading results...</p>
+      </div>
+    )
+  }
 
   const formatDate = (timestamp: number) => {
     return new Date(timestamp).toLocaleDateString('en-US', {
@@ -28,6 +66,7 @@ export function ResultsDashboard({ onBack }: ResultsDashboardProps) {
       hour: '2-digit',
       minute: '2-digit'
     })
+
   }
 
   const getGameName = (gameId: string) => {

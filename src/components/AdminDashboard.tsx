@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useAuth } from '@/lib/auth-context'
-import { useKV } from '@github/spark/hooks'
+import { adminAPI } from '@/lib/api-client'
 import { GameResult, User } from '@/lib/types'
 import { GAMES } from '@/lib/games'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -20,7 +20,7 @@ import {
   downloadGameSummaryCSV,
   ExportData 
 } from '@/lib/export-utils'
-import { getStorageInfo, exportAllData, downloadJSON } from '@/lib/storage-utils'
+import { downloadJSON } from '@/lib/storage-utils'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -41,21 +41,51 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
+// Helper to convert API response to GameResult
+function apiToGameResult(apiResult: any): GameResult {
+  return {
+    id: apiResult.id,
+    userId: apiResult.userId,
+    userEmail: '', // Not returned by API
+    gameId: apiResult.gameId,
+    score: apiResult.score,
+    reactionTime: apiResult.reactionTime,
+    accuracy: apiResult.accuracy,
+    timestamp: apiResult.completedAt,
+    details: apiResult.details
+  }
+}
+
 export function AdminDashboard() {
   const { logout } = useAuth()
-  const [users, setUsers, deleteUsers] = useKV<Record<string, { password: string; user: User }>>('users', {})
-  const [gameResults, setGameResults, deleteGameResults] = useKV<GameResult[]>('game-results', [])
+  const [students, setStudents] = useState<User[]>([])
+  const [gameResults, setGameResults] = useState<GameResult[]>([])
   const [selectedStudent, setSelectedStudent] = useState<string>('all')
   const [selectedGame, setSelectedGame] = useState<string>('all')
-  const [storageInfo, setStorageInfo] = useState<Record<string, any> | null>(null)
-  const [loadingStorage, setLoadingStorage] = useState(false)
   const [showResetDialog, setShowResetDialog] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const students = useMemo(() => {
-    return Object.values(users || {})
-      .map(u => u.user)
-      .filter(u => u.role === 'student')
-  }, [users])
+  // Fetch all data on mount
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const [usersData, resultsData] = await Promise.all([
+          adminAPI.getUsers(),
+          adminAPI.getAllResults()
+        ])
+        
+        setStudents(usersData.filter((u: User) => u.role === 'student'))
+        setGameResults(resultsData.map(apiToGameResult))
+      } catch (error) {
+        console.error('Failed to fetch admin data:', error)
+        toast.error('Failed to load data')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
 
   const filteredResults = useMemo(() => {
     let results = gameResults || []
@@ -206,23 +236,13 @@ export function AdminDashboard() {
     }
   }
 
-  const handleLoadStorageInfo = async () => {
-    setLoadingStorage(true)
-    try {
-      const info = await getStorageInfo()
-      setStorageInfo(info)
-      toast.success('Storage information loaded')
-    } catch (error) {
-      toast.error('Failed to load storage information')
-      console.error('Storage info error:', error)
-    } finally {
-      setLoadingStorage(false)
-    }
-  }
-
   const handleExportAllData = async () => {
     try {
-      const data = await exportAllData()
+      const data = {
+        users: students,
+        gameResults: gameResults,
+        exportDate: new Date().toISOString()
+      }
       downloadJSON(data, `10xmindplay-backup-${new Date().toISOString().split('T')[0]}.json`)
       toast.success('Complete data backup downloaded')
     } catch (error) {
@@ -233,25 +253,24 @@ export function AdminDashboard() {
 
   const handleResetStorage = async () => {
     try {
-      deleteUsers()
-      deleteGameResults()
+      await adminAPI.resetDatabase()
       
-      const allKeys = await window.spark.kv.keys()
-      for (const key of allKeys) {
-        if (key !== 'users' && key !== 'game-results') {
-          await window.spark.kv.delete(key)
-        }
-      }
+      // Refresh data after reset
+      const [usersData, resultsData] = await Promise.all([
+        adminAPI.getUsers(),
+        adminAPI.getAllResults()
+      ])
       
-      setStorageInfo(null)
+      setStudents(usersData.filter((u: User) => u.role === 'student'))
+      setGameResults(resultsData.map(apiToGameResult))
       setSelectedStudent('all')
       setSelectedGame('all')
       setShowResetDialog(false)
       
-      toast.success('All storage data has been cleared successfully')
+      toast.success('All database data has been cleared successfully')
     } catch (error) {
-      toast.error('Failed to reset storage')
-      console.error('Reset storage error:', error)
+      toast.error('Failed to reset database')
+      console.error('Reset database error:', error)
     }
   }
 
@@ -751,21 +770,11 @@ export function AdminDashboard() {
                       <div>
                         <CardTitle className="flex items-center gap-2">
                           <Database size={20} className="text-primary" />
-                          Storage Diagnostics
+                          Database Management
                         </CardTitle>
-                        <CardDescription>Monitor data persistence and storage health</CardDescription>
+                        <CardDescription>Monitor data persistence and database health</CardDescription>
                       </div>
                       <div className="flex gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          onClick={handleLoadStorageInfo}
-                          disabled={loadingStorage}
-                          className="gap-2"
-                        >
-                          <HardDrive size={16} />
-                          {loadingStorage ? 'Loading...' : 'Check Storage'}
-                        </Button>
                         <Button 
                           variant="default" 
                           size="sm" 
@@ -782,7 +791,7 @@ export function AdminDashboard() {
                           className="gap-2"
                         >
                           <Trash size={16} />
-                          Reset Storage
+                          Reset Database
                         </Button>
                       </div>
                     </div>
@@ -821,15 +830,15 @@ export function AdminDashboard() {
                         <Card className="border-2">
                           <CardHeader className="pb-3">
                             <CardTitle className="text-sm font-medium text-muted-foreground">
-                              Storage Keys
+                              Total Game Sessions
                             </CardTitle>
                           </CardHeader>
                           <CardContent>
                             <div className="text-3xl font-bold text-green-600">
-                              {storageInfo ? Object.keys(storageInfo).length : '-'}
+                              {gameResults.length}
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">
-                              KV store entries
+                              Completed tests
                             </p>
                           </CardContent>
                         </Card>
@@ -837,65 +846,15 @@ export function AdminDashboard() {
 
                       <Separator />
 
-                      <div className="space-y-4">
-                        <h3 className="font-semibold text-lg">Storage Information</h3>
-                        
-                        {!storageInfo ? (
-                          <div className="text-center py-12 text-muted-foreground">
-                            <Database size={48} className="mx-auto mb-4 opacity-20" />
-                            <p className="mb-4">Click "Check Storage" to view detailed storage information</p>
-                            <p className="text-xs">
-                              This will show all persistent data keys and their sizes
-                            </p>
-                          </div>
-                        ) : (
-                          <div className="space-y-3">
-                            {Object.entries(storageInfo).map(([key, info]) => (
-                              <motion.div
-                                key={key}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                className="p-4 rounded-lg border bg-card/50"
-                              >
-                                <div className="flex items-start justify-between mb-2">
-                                  <div className="font-mono text-sm font-semibold text-primary">
-                                    {key}
-                                  </div>
-                                  <Badge variant="outline">
-                                    {info.type}
-                                  </Badge>
-                                </div>
-                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
-                                  <div>
-                                    <p className="text-muted-foreground text-xs">Items</p>
-                                    <p className="font-semibold">{info.itemCount}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-muted-foreground text-xs">Size</p>
-                                    <p className="font-semibold">{(info.size / 1024).toFixed(2)} KB</p>
-                                  </div>
-                                  <div className="col-span-2 md:col-span-1">
-                                    <p className="text-muted-foreground text-xs">Preview</p>
-                                    <p className="font-mono text-xs truncate">{info.preview}</p>
-                                  </div>
-                                </div>
-                              </motion.div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      <Separator />
-
                       <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
                         <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-2 flex items-center gap-2">
                           <HardDrive size={16} />
-                          About Storage & Data Persistence
+                          About Database & Data Persistence
                         </h4>
                         <ul className="space-y-2 text-sm text-blue-800 dark:text-blue-200">
                           <li className="flex gap-2">
                             <span className="text-blue-600 dark:text-blue-400">•</span>
-                            <span>All data is stored using Spark's persistent key-value store (not browser localStorage)</span>
+                            <span>All data is stored in SQLite database (persistent and secure)</span>
                           </li>
                           <li className="flex gap-2">
                             <span className="text-blue-600 dark:text-blue-400">•</span>
