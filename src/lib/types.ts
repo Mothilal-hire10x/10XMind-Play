@@ -34,3 +34,10 @@ export interface TrialResult {
   reactionTime: number
   trialType?: string
 }
+
+export interface GameSummary {
+  score: number
+  accuracy: number
+  reactionTime: number
+  details?: Record<string, any>
+}

@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { AuthProvider, useAuth } from '@/lib/auth-context'
 import { ThemeProvider } from '@/lib/theme-context'
-import { useKV } from '@github/spark/hooks'
-import { GameResult, TrialResult } from '@/lib/types'
+import { resultsAPI } from '@/lib/api-client'
+import { GameResult, TrialResult, GameSummary } from '@/lib/types'
 import { AuthScreen } from '@/components/AuthScreen'
 import { Dashboard } from '@/components/Dashboard'
 import { AdminDashboard } from '@/components/AdminDashboard'
@@ -17,8 +17,12 @@ import { CorsiBlockTask } from '@/components/games/CorsiBlockTask'
 import { TowerOfHanoi } from '@/components/games/TowerOfHanoi'
 import { SART } from '@/components/games/SART'
 import { NBackTask } from '@/components/games/NBackTask'
+import { TrailMakingTest } from '@/components/games/TrailMakingTest'
+import { MentalRotationTest } from '@/components/games/MentalRotationTest'
+import { DichoticListeningTest } from '@/components/games/DichoticListeningTest'
 import { getGameById } from '@/lib/games'
 import { Toaster } from '@/components/ui/sonner'
+import { toast } from 'sonner'
 
 type Screen = 'dashboard' | 'instructions' | 'game' | 'results' | 'view-results'
 
@@ -26,12 +30,7 @@ function AppContent() {
   const { user, isLoading } = useAuth()
   const [screen, setScreen] = useState<Screen>('dashboard')
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null)
-  const [gameResults, setGameResults] = useKV<GameResult[]>('game-results', [])
-  const [currentGameSummary, setCurrentGameSummary] = useState<{
-    score: number
-    accuracy: number
-    reactionTime: number
-  } | null>(null)
+  const [currentGameSummary, setCurrentGameSummary] = useState<GameSummary | null>(null)
 
   if (isLoading) {
     return (
@@ -58,22 +57,24 @@ function AppContent() {
     setScreen('game')
   }
 
-  const handleGameComplete = (trials: TrialResult[], summary: { score: number; accuracy: number; reactionTime: number }) => {
-    const result: GameResult = {
-      id: `result_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      userId: user.id,
-      userEmail: user.email,
-      gameId: selectedGameId!,
-      score: summary.score,
-      reactionTime: summary.reactionTime,
-      accuracy: summary.accuracy,
-      timestamp: Date.now(),
-      details: { trials }
+  const handleGameComplete = async (trials: TrialResult[], summary: GameSummary) => {
+    try {
+      // Save result to backend
+      await resultsAPI.saveResult(
+        selectedGameId!,
+        summary.score,
+        summary.accuracy,
+        summary.reactionTime,
+        { trials, ...summary.details }
+      )
+      
+      setCurrentGameSummary(summary)
+      setScreen('results')
+      toast.success('Game results saved successfully!')
+    } catch (error) {
+      console.error('Failed to save game result:', error)
+      toast.error('Failed to save game results')
     }
-
-    setGameResults(current => [...(current || []), result])
-    setCurrentGameSummary(summary)
-    setScreen('results')
   }
 
   const handleBackToDashboard = () => {
@@ -111,6 +112,12 @@ function AppContent() {
         return <SART {...gameProps} />
       case 'nback':
         return <NBackTask {...gameProps} />
+      case 'trail-making':
+        return <TrailMakingTest {...gameProps} />
+      case 'mental-rotation':
+        return <MentalRotationTest {...gameProps} />
+      case 'dichotic-listening':
+        return <DichoticListeningTest {...gameProps} />
       default:
         return null
     }

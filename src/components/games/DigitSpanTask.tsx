@@ -4,16 +4,17 @@ import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { X, ArrowRight, Brain } from '@phosphor-icons/react'
-import { TrialResult } from '@/lib/types'
+import { TrialResult, GameSummary } from '@/lib/types'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface DigitSpanTaskProps {
-  onComplete: (results: TrialResult[], summary: { score: number; accuracy: number; reactionTime: number }) => void
+  onComplete: (results: TrialResult[], summary: GameSummary) => void
   onExit: () => void
 }
 
 export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
-  const [span, setSpan] = useState(2)
+  const [mode, setMode] = useState<'forward' | 'backward'>('forward')
+  const [span, setSpan] = useState(3)
   const [sequence, setSequence] = useState<number[]>([])
   const [currentDigitIndex, setCurrentDigitIndex] = useState(0)
   const [phase, setPhase] = useState<'showing' | 'recall'>('showing')
@@ -22,6 +23,9 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
   const [startTime, setStartTime] = useState(0)
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null)
+  const [forwardMaxSpan, setForwardMaxSpan] = useState(0)
+  const [backwardMaxSpan, setBackwardMaxSpan] = useState(0)
+  const [totalCorrect, setTotalCorrect] = useState(0)
 
   const generateSequence = useCallback((length: number) => {
     return Array.from({ length }, () => Math.floor(Math.random() * 10))
@@ -58,44 +62,67 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
     e.preventDefault()
     
     const reactionTime = performance.now() - startTime
-    const correct = userInput === sequence.join('')
+    const expectedAnswer = mode === 'forward' 
+      ? sequence.join('') 
+      : sequence.slice().reverse().join('')
+    const correct = userInput === expectedAnswer
     
     const trialResult: TrialResult = {
       stimulus: sequence.join(''),
       response: userInput,
       correct,
-      reactionTime
+      reactionTime,
+      trialType: mode
     }
 
     setResults(prev => [...prev, trialResult])
     setFeedback(correct ? 'correct' : 'incorrect')
 
     if (correct) {
+      setTotalCorrect(prev => prev + 1)
       setConsecutiveFailures(0)
-      if (results.filter(r => r.stimulus.length === span.toString().length).filter(r => r.correct).length >= 1) {
-        setTimeout(() => {
-          setSpan(prev => prev + 1)
-          setTimeout(() => startTrial(), 300)
-        }, 1200)
-      } else {
-        setTimeout(() => startTrial(), 1200)
+      
+      // Update max span for current mode
+      if (mode === 'forward' && span > forwardMaxSpan) {
+        setForwardMaxSpan(span)
+      } else if (mode === 'backward' && span > backwardMaxSpan) {
+        setBackwardMaxSpan(span)
       }
+      
+      setTimeout(() => {
+        setSpan(prev => prev + 1)
+        setTimeout(() => startTrial(), 300)
+      }, 1200)
     } else {
       const newFailures = consecutiveFailures + 1
       setConsecutiveFailures(newFailures)
       
       if (newFailures >= 2) {
-        setTimeout(() => {
-          const maxSpan = Math.max(...results.filter(r => r.correct).map(r => r.stimulus.length), span - 1)
-          const totalCorrect = results.filter(r => r.correct).length + (correct ? 1 : 0)
-          const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
-          
-          onComplete(results, {
-            score: maxSpan,
-            accuracy: (totalCorrect / (results.length + 1)) * 100,
-            reactionTime: avgRT
-          })
-        }, 1200)
+        // If in forward mode and failed, switch to backward
+        if (mode === 'forward') {
+          setTimeout(() => {
+            setMode('backward')
+            setSpan(3) // Reset span for backward mode
+            setConsecutiveFailures(0)
+            setTimeout(() => startTrial(), 500)
+          }, 1200)
+        } else {
+          // End test after backward mode fails
+          setTimeout(() => {
+            const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
+            
+            onComplete(results, {
+              score: Math.max(forwardMaxSpan, backwardMaxSpan),
+              accuracy: (totalCorrect / (results.length + 1)) * 100,
+              reactionTime: avgRT,
+              details: {
+                forwardSpan: forwardMaxSpan,
+                backwardSpan: backwardMaxSpan,
+                totalCorrectSequences: totalCorrect
+              }
+            })
+          }, 1200)
+        }
       } else {
         setTimeout(() => startTrial(), 1200)
       }
@@ -111,6 +138,14 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
             <div className="flex flex-col items-start">
               <span className="text-xs text-muted-foreground">Current Span</span>
               <span className="text-2xl font-bold text-foreground">{span}</span>
+            </div>
+          </Badge>
+          <Badge variant="outline" className="gap-2 px-4 py-2">
+            <div className="flex flex-col items-start">
+              <span className="text-xs text-muted-foreground">Mode</span>
+              <span className="text-xl font-bold text-primary">
+                {mode === 'forward' ? '➡️ Forward' : '⬅️ Backward'}
+              </span>
             </div>
           </Badge>
           <Badge variant="outline" className="gap-2 px-4 py-2">
@@ -202,8 +237,12 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
               }`}>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div className="text-center space-y-2">
-                    <h3 className="text-2xl font-bold text-foreground">Enter the sequence</h3>
-                    <p className="text-sm text-muted-foreground">Type the {span} digits in order</p>
+                    <h3 className="text-2xl font-bold text-foreground">
+                      {mode === 'forward' ? 'Enter the sequence in order' : 'Enter the sequence in reverse'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Type the {span} digits {mode === 'forward' ? 'in the same order' : 'in reverse order'}
+                    </p>
                   </div>
                   <div className="relative">
                     <Input

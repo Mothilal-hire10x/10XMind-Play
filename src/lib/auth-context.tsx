@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
-import { useKV } from '@github/spark/hooks'
 import { User } from '@/lib/types'
+import { authAPI, getToken } from '@/lib/api-client'
 
 interface AuthContextType {
   user: User | null
@@ -13,82 +13,54 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [users, setUsers] = useKV<Record<string, { password: string; user: User }>>('users', {})
-  const [currentUserId, setCurrentUserId] = useKV<string | null>('currentUserId', null)
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
+  // Check if user is already logged in on mount
   useEffect(() => {
-    if (currentUserId && users && users[currentUserId]) {
-      setUser(users[currentUserId].user)
-    } else {
-      setUser(null)
-    }
-    setIsLoading(false)
-  }, [currentUserId, users])
-
-  useEffect(() => {
-    const initializeAdmin = () => {
-      const adminEmail = 'admin@10xscale.ai'
-      const adminPassword = 'Jack@123'
-      
-      const existingAdmin = Object.values(users || {}).find(u => u.user.email === adminEmail)
-      
-      if (!existingAdmin) {
-        const adminId = 'admin_default'
-        const adminUser: User = {
-          id: adminId,
-          email: adminEmail,
-          role: 'admin',
-          createdAt: Date.now()
+    const checkAuth = async () => {
+      const token = getToken()
+      if (token) {
+        try {
+          const currentUser = await authAPI.getCurrentUser()
+          setUser(currentUser)
+        } catch (error) {
+          console.error('Failed to get current user:', error)
+          // Token might be invalid, clear it
+          authAPI.logout()
         }
-        
-        setUsers(current => ({
-          ...(current || {}),
-          [adminId]: { password: adminPassword, user: adminUser }
-        }))
       }
+      setIsLoading(false)
     }
-    
-    if (users !== undefined) {
-      initializeAdmin()
-    }
-  }, [users, setUsers])
+
+    checkAuth()
+  }, [])
 
   const signup = async (email: string, password: string): Promise<boolean> => {
-    const existingUser = Object.values(users || {}).find(u => u.user.email === email)
-    if (existingUser) {
+    try {
+      const newUser = await authAPI.signup(email, password)
+      setUser(newUser)
+      return true
+    } catch (error) {
+      console.error('Signup failed:', error)
       return false
     }
-
-    const userId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    const newUser: User = {
-      id: userId,
-      email,
-      role: 'student',
-      createdAt: Date.now()
-    }
-
-    setUsers(current => ({
-      ...(current || {}),
-      [userId]: { password, user: newUser }
-    }))
-    setCurrentUserId(userId)
-    return true
   }
 
   const login = async (email: string, password: string): Promise<boolean> => {
-    const userEntry = Object.values(users || {}).find(u => u.user.email === email)
-    if (!userEntry || userEntry.password !== password) {
+    try {
+      const loggedInUser = await authAPI.login(email, password)
+      setUser(loggedInUser)
+      return true
+    } catch (error) {
+      console.error('Login failed:', error)
       return false
     }
-
-    setCurrentUserId(userEntry.user.id)
-    return true
   }
 
   const logout = () => {
-    setCurrentUserId(null)
+    authAPI.logout()
+    setUser(null)
   }
 
   return (
@@ -105,3 +77,4 @@ export function useAuth() {
   }
   return context
 }
+

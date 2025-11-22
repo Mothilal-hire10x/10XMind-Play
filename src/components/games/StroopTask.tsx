@@ -4,11 +4,11 @@ import { Card } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
 import { X, Check, XCircle } from '@phosphor-icons/react'
-import { TrialResult } from '@/lib/types'
+import { TrialResult, GameSummary } from '@/lib/types'
 import { motion, AnimatePresence } from 'framer-motion'
 
 interface StroopTaskProps {
-  onComplete: (results: TrialResult[], summary: { score: number; accuracy: number; reactionTime: number }) => void
+  onComplete: (results: TrialResult[], summary: GameSummary) => void
   onExit: () => void
 }
 
@@ -45,10 +45,34 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
       const totalCorrect = results.filter(r => r.correct).length
       const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
       
+      // Calculate Stroop Interference Effect
+      const congruentTrials = results.filter(r => r.trialType === 'congruent')
+      const incongruentTrials = results.filter(r => r.trialType === 'incongruent')
+      
+      const congruentRT = congruentTrials.length > 0 
+        ? congruentTrials.reduce((sum, r) => sum + r.reactionTime, 0) / congruentTrials.length 
+        : 0
+      const incongruentRT = incongruentTrials.length > 0 
+        ? incongruentTrials.reduce((sum, r) => sum + r.reactionTime, 0) / incongruentTrials.length 
+        : 0
+      
+      const stroopInterference = incongruentRT - congruentRT
+      const errorRate = ((TOTAL_TRIALS - totalCorrect) / TOTAL_TRIALS) * 100
+      
       onComplete(results, {
         score: totalCorrect,
         accuracy: (totalCorrect / TOTAL_TRIALS) * 100,
-        reactionTime: avgRT
+        reactionTime: avgRT,
+        details: {
+          congruentRT,
+          incongruentRT,
+          stroopInterference,
+          errorRate,
+          congruentTrials: congruentTrials.length,
+          incongruentTrials: incongruentTrials.length,
+          congruentCorrect: congruentTrials.filter(r => r.correct).length,
+          incongruentCorrect: incongruentTrials.filter(r => r.correct).length
+        }
       })
       return
     }
