@@ -21,6 +21,8 @@ export interface GameResult {
   score: number;
   accuracy: number;
   reaction_time: number;
+  error_count?: number | null;
+  error_rate?: number | null;
   details: string | null;
   completed_at: number;
 }
@@ -32,6 +34,8 @@ export interface GameResultResponse {
   score: number;
   accuracy: number;
   reactionTime: number;
+  errorCount?: number | null;
+  errorRate?: number | null;
   details: any;
   completedAt: number;
 }

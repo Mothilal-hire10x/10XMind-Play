@@ -13,7 +13,13 @@ interface DichoticListeningTestProps {
 }
 
 const SYLLABLES = ['BA', 'DA', 'GA', 'KA', 'PA', 'TA', 'FA', 'SA', 'LA', 'RA', 'MA', 'NA']
-const TOTAL_TRIALS = 24
+const TOTAL_TRIALS = 24 // PsyToolkit standard for dichotic listening
+
+// Note: True dichotic listening requires stereo headphones with separate audio to each ear
+// This implementation uses Web Speech API which has limitations:
+// - Cannot achieve true simultaneous dichotic presentation in browsers
+// - Requires headphones for best results
+// - For research-grade dichotic listening, use specialized audio files with stereo panning
 
 export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningTestProps) {
   const [currentTrial, setCurrentTrial] = useState(0)
@@ -86,11 +92,15 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
       const totalCorrect = results.filter(r => r.correct).length
       const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
       const earAdvantage = rightEarScore - leftEarScore
+      const errorCount = (TOTAL_TRIALS * 2) - totalCorrect
+      const errorRate = (errorCount / (TOTAL_TRIALS * 2)) * 100
       
       onComplete(results, {
         score: totalCorrect,
         accuracy: (totalCorrect / (TOTAL_TRIALS * 2)) * 100, // 2 responses per trial
         reactionTime: avgRT,
+        errorCount,
+        errorRate,
         details: {
           rightEarScore,
           leftEarScore,
@@ -152,7 +162,9 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
   const stats = {
     accuracy: results.length > 0 ? Math.round((results.filter(r => r.correct).length / results.length) * 100) : 0,
-    avgRT: results.length > 0 ? Math.round(results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length) : 0
+    avgRT: results.length > 0 ? Math.round(results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length) : 0,
+    errors: results.length > 0 ? results.length - results.filter(r => r.correct).length : 0,
+    errorRate: results.length > 0 ? Math.round(((results.length - results.filter(r => r.correct).length) / results.length) * 100) : 0
   }
 
   return (
@@ -169,6 +181,10 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
             <Badge variant="outline" className="gap-2">
               <span className="text-xs text-muted-foreground">Accuracy</span>
               <span className="font-bold">{stats.accuracy}%</span>
+            </Badge>
+            <Badge variant="outline" className="gap-2">
+              <span className="text-xs text-muted-foreground">Errors</span>
+              <span className="font-bold text-destructive">{stats.errors} ({stats.errorRate}%)</span>
             </Badge>
             <Badge variant="outline" className="gap-2">
               <span className="text-xs text-muted-foreground">Left Ear</span>

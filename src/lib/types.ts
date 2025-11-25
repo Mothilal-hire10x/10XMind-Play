@@ -13,6 +13,8 @@ export interface GameResult {
   score: number
   reactionTime?: number
   accuracy: number
+  errorCount?: number
+  errorRate?: number
   timestamp: number
   details?: Record<string, any>
 }
@@ -33,11 +35,14 @@ export interface TrialResult {
   correct: boolean
   reactionTime: number
   trialType?: string
+  status?: number // PsyToolkit standard: 1=correct, 2=wrong, 3=timeout
 }
 
 export interface GameSummary {
   score: number
   accuracy: number
   reactionTime: number
+  errorCount?: number
+  errorRate?: number
   details?: Record<string, any>
 }

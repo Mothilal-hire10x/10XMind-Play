@@ -61,11 +61,15 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
     if (currentTrial >= TOTAL_TRIALS) {
       const totalCorrect = results.filter(r => r.correct).length
       const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
+      const errorCount = TOTAL_TRIALS - totalCorrect
+      const errorRate = (errorCount / TOTAL_TRIALS) * 100
       
       onComplete(results, {
         score: totalCorrect,
         accuracy: (totalCorrect / TOTAL_TRIALS) * 100,
         reactionTime: avgRT,
+        errorCount,
+        errorRate,
         details: {
           errorTypes,
           avgReactionTime: avgRT,
@@ -165,7 +169,9 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
 
   const stats = {
     accuracy: results.length > 0 ? Math.round((results.filter(r => r.correct).length / results.length) * 100) : 0,
-    avgRT: results.length > 0 ? Math.round(results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length) : 0
+    avgRT: results.length > 0 ? Math.round(results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length) : 0,
+    errors: results.length > 0 ? results.length - results.filter(r => r.correct).length : 0,
+    errorRate: results.length > 0 ? Math.round(((results.length - results.filter(r => r.correct).length) / results.length) * 100) : 0
   }
 
   return (
@@ -190,7 +196,7 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
             <Badge variant="outline" className="gap-2">
               <span className="text-xs text-muted-foreground">Errors</span>
               <span className="font-bold text-destructive">
-                M:{errorTypes.mirror} R:{errorTypes.rotation} N:{errorTypes.nonMatch}
+                {stats.errors} ({stats.errorRate}%) | M:{errorTypes.mirror} R:{errorTypes.rotation} N:{errorTypes.nonMatch}
               </span>
             </Badge>
           </div>

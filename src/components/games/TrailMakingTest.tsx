@@ -139,10 +139,15 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
           // Both tests complete
           setTimeout(() => {
             const timeDifference = completedTime - testATime
+            const totalErrors = testAErrors + errors
+            const errorRate = (totalErrors / (circles.length * 2)) * 100
+            
             onComplete(results, {
               score: Math.round((testATime + completedTime) / 2),
-              accuracy: ((circles.length * 2 - testAErrors - errors) / (circles.length * 2)) * 100,
+              accuracy: ((circles.length * 2 - totalErrors) / (circles.length * 2)) * 100,
               reactionTime: (testATime + completedTime) / 2,
+              errorCount: totalErrors,
+              errorRate,
               details: {
                 tmtATime: testATime,
                 tmtBTime: completedTime,
@@ -202,7 +207,9 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
           <Badge variant="outline" className="gap-2 px-4 py-2">
             <div className="flex flex-col items-start">
               <span className="text-xs text-muted-foreground">Errors</span>
-              <span className="text-xl font-bold text-destructive">{errors}</span>
+              <span className="text-xl font-bold text-destructive">
+                {errors} ({currentTarget > 0 ? Math.round((errors / currentTarget) * 100) : 0}%)
+              </span>
             </div>
           </Badge>
         </div>

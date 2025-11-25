@@ -1,6 +1,6 @@
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle, ArrowRight, Trophy, Target, Timer } from '@phosphor-icons/react'
+import { CheckCircle, ArrowRight, Trophy, Target, Timer, XCircle } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion } from 'framer-motion'
@@ -11,6 +11,8 @@ interface GameResultsProps {
     score: number
     accuracy: number
     reactionTime: number
+    errorCount?: number
+    errorRate?: number
   }
   onContinue: () => void
 }
@@ -70,7 +72,7 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
               <Badge className={badge.className}>{badge.label}</Badge>
             </motion.div>
 
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <motion.div 
                 className="text-center p-4 rounded-xl bg-gradient-to-br from-primary/10 to-blue-500/5 border border-primary/20 hover:scale-105 transition-transform"
                 initial={{ opacity: 0, y: 20 }}
@@ -97,11 +99,26 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
                 <p className="text-3xl font-bold text-foreground">{summary.accuracy.toFixed(1)}%</p>
                 <p className="text-xs text-muted-foreground mt-1">Accuracy</p>
               </motion.div>
+              {summary.errorCount !== undefined && (
+                <motion.div 
+                  className="text-center p-4 rounded-xl bg-gradient-to-br from-red-500/10 to-rose-500/5 border border-red-500/20 hover:scale-105 transition-transform"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.7 }}
+                  whileHover={{ y: -5 }}
+                >
+                  <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gradient-to-br from-red-500 to-rose-500 flex items-center justify-center">
+                    <XCircle size={20} weight="duotone" className="text-white" />
+                  </div>
+                  <p className="text-3xl font-bold text-foreground">{summary.errorCount}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Errors ({summary.errorRate?.toFixed(1)}%)</p>
+                </motion.div>
+              )}
               <motion.div 
                 className="text-center p-4 rounded-xl bg-gradient-to-br from-orange-500/10 to-red-500/5 border border-orange-500/20 hover:scale-105 transition-transform"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
+                transition={{ delay: summary.errorCount !== undefined ? 0.8 : 0.7 }}
                 whileHover={{ y: -5 }}
               >
                 <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-gradient-to-br from-orange-500 to-red-500 flex items-center justify-center">
@@ -115,7 +132,7 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
+              transition={{ delay: summary.errorCount !== undefined ? 0.9 : 0.8 }}
             >
               <Button 
                 onClick={onContinue} 
