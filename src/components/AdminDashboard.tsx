@@ -51,6 +51,8 @@ function apiToGameResult(apiResult: any): GameResult {
     score: apiResult.score,
     reactionTime: apiResult.reactionTime,
     accuracy: apiResult.accuracy,
+    errorCount: apiResult.errorCount,
+    errorRate: apiResult.errorRate,
     timestamp: apiResult.completedAt,
     details: apiResult.details
   }
