@@ -511,10 +511,6 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
             }
           </div>
 
-          <div className="absolute top-4 right-4 text-lg font-bold text-primary">
-            Next: {circles[currentTarget]?.label}
-          </div>
-
           {circles.map((circle, index) => {
             const isTarget = circle.id === currentTarget
             const isCompleted = circle.isClicked
@@ -542,8 +538,6 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
                     transition-all duration-200 relative
                     ${isCompleted 
                       ? 'bg-success border-success text-white cursor-default' 
-                      : isTarget
-                      ? 'bg-primary border-primary text-white animate-pulse shadow-lg shadow-primary/50'
                       : 'bg-card border-border hover:border-primary hover:bg-primary/10'
                     }
                   `}

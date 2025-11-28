@@ -4,6 +4,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TrialResult, GameSummary } from '@/lib/types'
 import { motion, AnimatePresence } from 'framer-motion'
+import { ArrowRight, RotateCcw } from 'lucide-react'
 
 const INITIAL_SPAN = 2
 const MAX_SPAN = 9
@@ -14,7 +15,7 @@ interface DigitSpanTaskProps {
   onExit: () => void
 }
 
-type GamePhase = 'instructions' | 'practice' | 'test'
+type GamePhase = 'modeSelection' | 'instructions' | 'practice' | 'test'
 type TrialType = 'forward' | 'backward'
 
 interface Trial {
@@ -28,8 +29,9 @@ interface Trial {
 }
 
 export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
-  const [gamePhase, setGamePhase] = useState<GamePhase>('instructions')
+  const [gamePhase, setGamePhase] = useState<GamePhase>('modeSelection')
   const [instructionPage, setInstructionPage] = useState(0)
+  const [selectedMode, setSelectedMode] = useState<TrialType | null>(null)
   
   const [currentSpan, setCurrentSpan] = useState(INITIAL_SPAN)
   const [currentSequence, setCurrentSequence] = useState<number[]>([])
@@ -37,14 +39,12 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
   const [isDisplaying, setIsDisplaying] = useState(false)
   const [currentDigitIndex, setCurrentDigitIndex] = useState(0)
   const [isInputPhase, setIsInputPhase] = useState(false)
-  const [trialType, setTrialType] = useState<TrialType>('forward')
   const [trialStartTime, setTrialStartTime] = useState(0)
   
   const [results, setResults] = useState<Trial[]>([])
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
   const [consecutiveSuccesses, setConsecutiveSuccesses] = useState(0)
-  const [maxSpanForward, setMaxSpanForward] = useState(INITIAL_SPAN - 1)
-  const [maxSpanBackward, setMaxSpanBackward] = useState(INITIAL_SPAN - 1)
+  const [maxSpan, setMaxSpan] = useState(INITIAL_SPAN - 1)
 
   const generateSequence = (length: number): number[] => {
     return Array.from({ length }, () => Math.floor(Math.random() * 10))
@@ -52,6 +52,7 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
 
   const startNewTrial = (isPractice = false) => {
     const sequence = generateSequence(currentSpan)
+    console.log('Starting new trial with sequence:', sequence, 'span:', currentSpan)
     setCurrentSequence(sequence)
     setUserInput([])
     setIsDisplaying(true)
@@ -74,17 +75,20 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
 
   useEffect(() => {
     if (isDisplaying && currentDigitIndex < currentSequence.length) {
+      console.log('Displaying digit:', currentSequence[currentDigitIndex], 'index:', currentDigitIndex, 'of', currentSequence.length)
       const timer = setTimeout(() => {
         setCurrentDigitIndex(prev => prev + 1)
       }, DIGIT_DISPLAY_DURATION)
       return () => clearTimeout(timer)
     } else if (isDisplaying && currentDigitIndex >= currentSequence.length) {
-      setTimeout(() => {
+      console.log('All digits displayed, moving to input phase')
+      const timer = setTimeout(() => {
         setIsDisplaying(false)
         setIsInputPhase(true)
       }, 500)
+      return () => clearTimeout(timer)
     }
-  }, [isDisplaying, currentDigitIndex, currentSequence])
+  }, [isDisplaying, currentDigitIndex, currentSequence.length])
 
   const handleDigitClick = (digit: number) => {
     if (!isInputPhase) return
@@ -96,10 +100,10 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
   }
 
   const handleSubmit = () => {
-    if (userInput.length === 0) return
+    if (userInput.length === 0 || !selectedMode) return
 
     const reactionTime = Date.now() - trialStartTime
-    const expectedSequence = trialType === 'forward' 
+    const expectedSequence = selectedMode === 'forward' 
       ? currentSequence 
       : [...currentSequence].reverse()
     
@@ -112,7 +116,7 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
       correct,
       reactionTime,
       spanLength: currentSpan,
-      type: trialType,
+      type: selectedMode,
       isPractice: gamePhase === 'practice'
     }
 
@@ -134,23 +138,11 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
         const newSpan = currentSpan + 1
         
         if (newSpan > MAX_SPAN) {
-          if (trialType === 'forward') {
-            setMaxSpanForward(currentSpan)
-            setTrialType('backward')
-            setCurrentSpan(INITIAL_SPAN)
-            setConsecutiveFailures(0)
-            setConsecutiveSuccesses(0)
-          } else {
-            setMaxSpanBackward(currentSpan)
-            finishGame()
-            return
-          }
+          setMaxSpan(currentSpan)
+          finishGame()
+          return
         } else {
-          if (trialType === 'forward') {
-            setMaxSpanForward(currentSpan)
-          } else {
-            setMaxSpanBackward(currentSpan)
-          }
+          setMaxSpan(currentSpan)
           setCurrentSpan(newSpan)
           setConsecutiveSuccesses(0)
         }
@@ -160,17 +152,9 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
       setConsecutiveSuccesses(0)
 
       if (consecutiveFailures + 1 >= 2) {
-        if (trialType === 'forward') {
-          setMaxSpanForward(Math.max(currentSpan - 1, INITIAL_SPAN - 1))
-          setTrialType('backward')
-          setCurrentSpan(INITIAL_SPAN)
-          setConsecutiveFailures(0)
-          setConsecutiveSuccesses(0)
-        } else {
-          setMaxSpanBackward(Math.max(currentSpan - 1, INITIAL_SPAN - 1))
-          finishGame()
-          return
-        }
+        setMaxSpan(Math.max(currentSpan - 1, INITIAL_SPAN - 1))
+        finishGame()
+        return
       }
     }
 
@@ -178,24 +162,22 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
   }
 
   const finishGame = () => {
-    const totalTrials = results.length + 1
-    const totalCorrect = results.filter(r => r.correct).length
+    if (!selectedMode) return
+    
+    // Include the current trial in the results
+    const allResults = results
+    const totalTrials = allResults.length
+    const totalCorrect = allResults.filter(r => r.correct).length
     const errorCount = totalTrials - totalCorrect
     const errorRate = totalTrials > 0 ? (errorCount / totalTrials) * 100 : 0
     
-    const forwardTrials = results.filter(r => r.type === 'forward')
-    const backwardTrials = results.filter(r => r.type === 'backward')
-    const forwardScore = forwardTrials.filter(r => r.correct).length
-    const backwardScore = backwardTrials.filter(r => r.correct).length
-    
-    const avgRT = results.length > 0
-      ? results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
+    const avgRT = allResults.length > 0
+      ? allResults.reduce((sum, r) => sum + r.reactionTime, 0) / allResults.length
       : 0
 
-    const finalMaxForward = trialType === 'forward' ? Math.max(currentSpan - 1, maxSpanForward) : maxSpanForward
-    const finalMaxBackward = trialType === 'backward' ? Math.max(currentSpan - 1, maxSpanBackward) : maxSpanBackward
+    const finalMaxSpan = Math.max(currentSpan - 1, maxSpan)
 
-    const trialResults: TrialResult[] = results.map((trial, idx) => ({
+    const trialResults: TrialResult[] = allResults.map((trial, idx) => ({
       stimulus: trial.sequence.join(' '),
       response: trial.userInput.join(' '),
       correct: trial.correct,
@@ -205,21 +187,25 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
     }))
 
     const summary: GameSummary = {
-      score: finalMaxForward + finalMaxBackward,
+      score: finalMaxSpan,
       accuracy: totalTrials > 0 ? (totalCorrect / totalTrials) * 100 : 0,
       reactionTime: avgRT,
       errorCount,
       errorRate,
       details: {
         totalTrials,
-        maxSpanForward: finalMaxForward,
-        maxSpanBackward: finalMaxBackward,
-        forwardScore,
-        backwardScore
+        maxSpan: finalMaxSpan,
+        mode: selectedMode,
+        correctSequences: totalCorrect
       }
     }
 
     onComplete(trialResults, summary)
+  }
+
+  const handleModeSelect = (mode: TrialType) => {
+    setSelectedMode(mode)
+    setGamePhase('instructions')
   }
 
   const handleInstructionNext = () => {
@@ -236,10 +222,143 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
     }
   }
 
-  if (gamePhase === 'instructions') {
+  // Mode Selection Screen
+  if (gamePhase === 'modeSelection') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-3xl w-full p-8">
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+        <Card className="max-w-4xl w-full p-8 shadow-2xl">
+          <div className="space-y-8">
+            <div className="text-center space-y-2">
+              <h1 className="text-4xl font-bold mb-2">Digit Span Test</h1>
+              <Badge variant="outline" className="mb-4">Memory Assessment</Badge>
+              <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+                Choose your test mode. Both tests measure working memory capacity, but in different ways.
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
+              {/* Forward Mode */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Card 
+                  className="p-6 cursor-pointer hover:border-blue-500 hover:shadow-lg transition-all h-full border-2"
+                  onClick={() => handleModeSelect('forward')}
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center">
+                      <div className="p-4 bg-blue-100 dark:bg-blue-900 rounded-full">
+                        <ArrowRight className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                      </div>
+                    </div>
+                    
+                    <div className="text-center space-y-2">
+                      <h2 className="text-2xl font-bold text-blue-600 dark:text-blue-400">Digit Span</h2>
+                      <p className="text-sm text-muted-foreground font-medium">Forward Order</p>
+                    </div>
+
+                    <div className="space-y-3 text-sm">
+                      <p className="text-center">
+                        Repeat digits in the <strong>same order</strong> they were presented.
+                      </p>
+                      
+                      <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                        <div className="font-semibold text-center">Example:</div>
+                        <div className="flex items-center justify-center gap-2 text-lg">
+                          <span className="text-blue-600 font-mono">3 7 2</span>
+                          <ArrowRight className="w-4 h-4" />
+                          <span className="text-green-600 font-mono">3 7 2</span>
+                        </div>
+                      </div>
+
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li>✓ Tests immediate recall</li>
+                        <li>✓ Measures short-term memory</li>
+                        <li>✓ Starts at 2 digits</li>
+                      </ul>
+                    </div>
+
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                      Select Forward Mode
+                    </Button>
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Backward Mode */}
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Card 
+                  className="p-6 cursor-pointer hover:border-purple-500 hover:shadow-lg transition-all h-full border-2"
+                  onClick={() => handleModeSelect('backward')}
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center">
+                      <div className="p-4 bg-purple-100 dark:bg-purple-900 rounded-full">
+                        <RotateCcw className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                      </div>
+                    </div>
+                    
+                    <div className="text-center space-y-2">
+                      <h2 className="text-2xl font-bold text-purple-600 dark:text-purple-400">Reverse Digit Span</h2>
+                      <p className="text-sm text-muted-foreground font-medium">Backward Order</p>
+                    </div>
+
+                    <div className="space-y-3 text-sm">
+                      <p className="text-center">
+                        Repeat digits in <strong>reverse order</strong> from how they were shown.
+                      </p>
+                      
+                      <div className="bg-muted/50 p-4 rounded-lg space-y-2">
+                        <div className="font-semibold text-center">Example:</div>
+                        <div className="flex items-center justify-center gap-2 text-lg">
+                          <span className="text-purple-600 font-mono">3 7 2</span>
+                          <RotateCcw className="w-4 h-4" />
+                          <span className="text-green-600 font-mono">2 7 3</span>
+                        </div>
+                      </div>
+
+                      <ul className="space-y-1 text-muted-foreground">
+                        <li>✓ Tests working memory</li>
+                        <li>✓ Requires mental manipulation</li>
+                        <li>✓ More challenging task</li>
+                      </ul>
+                    </div>
+
+                    <Button className="w-full bg-purple-600 hover:bg-purple-700">
+                      Select Reverse Mode
+                    </Button>
+                  </div>
+                </Card>
+              </motion.div>
+            </div>
+
+            <div className="flex justify-center pt-4">
+              <Button
+                onClick={onExit}
+                variant="outline"
+                className="text-red-600 hover:text-red-700"
+              >
+                Exit to Dashboard
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  if (gamePhase === 'instructions') {
+    const modeColor = selectedMode === 'forward' ? 'blue' : 'purple'
+    const modeName = selectedMode === 'forward' ? 'Digit Span' : 'Reverse Digit Span'
+    const modeDescription = selectedMode === 'forward' ? 'same order' : 'reverse order'
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+        <Card className="max-w-3xl w-full p-8 shadow-2xl">
           <AnimatePresence mode="wait">
             <motion.div
               key={instructionPage}
@@ -251,20 +370,21 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
               {instructionPage === 0 && (
                 <div className="space-y-6">
                   <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-2">Digit Span Test</h1>
+                    <h1 className="text-4xl font-bold mb-2">{modeName}</h1>
                     <Badge variant="outline" className="mb-4">Memory Assessment</Badge>
                   </div>
                   
                   <div className="space-y-4 text-lg">
                     <p>
-                      Welcome to the <strong>Digit Span Test</strong>, a classic assessment of your 
+                      Welcome to the <strong>{modeName}</strong> test, a classic assessment of your 
                       working memory capacity.
                     </p>
                     
                     <p>
                       This test measures how many digits you can remember and repeat back in the 
-                      correct order. It's widely used in cognitive psychology and neuropsychology 
-                      to assess short-term memory function.
+                      <strong> {modeDescription}</strong>. 
+                      It's widely used in cognitive psychology and neuropsychology 
+                      to assess {selectedMode === 'forward' ? 'short-term' : 'working'} memory function.
                     </p>
 
                     <div className="bg-muted/50 p-4 rounded-lg">
@@ -272,14 +392,18 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
                       <ul className="list-disc list-inside space-y-2">
                         <li>Watch sequences of digits appear one at a time</li>
                         <li>Remember the digits in order</li>
-                        <li>Repeat them back using the digit pad</li>
+                        <li>Repeat them back in <strong>{modeDescription}</strong></li>
                       </ul>
                     </div>
 
-                    <p className="text-muted-foreground text-base">
-                      The test has two modes: <strong>Forward</strong> (repeat in same order) and 
-                      <strong>Backward</strong> (repeat in reverse order).
-                    </p>
+                    {selectedMode === 'backward' && (
+                      <div className="border-l-4 border-purple-500 pl-4 py-2 bg-purple-50 dark:bg-purple-900/20">
+                        <p className="text-base">
+                          <strong>Note:</strong> This reverse version is more challenging as it requires 
+                          you to mentally reverse the sequence before entering it.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -303,7 +427,7 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
                           <strong>Remember the sequence:</strong> Pay attention to the order
                         </li>
                         <li>
-                          <strong>Click the digits:</strong> Use the digit pad (0-9) to enter your answer
+                          <strong>Enter your answer:</strong> Click the digits in <strong>{modeDescription}</strong>
                         </li>
                         <li>
                           <strong>Submit:</strong> Click the green checkmark when you're done
@@ -311,12 +435,14 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
                       </ol>
                     </div>
 
-                    <div className="border-l-4 border-blue-500 pl-4 py-2">
+                    <div className={`border-l-4 border-${modeColor}-500 pl-4 py-2`}>
                       <p className="text-base">
-                        <strong>Important:</strong> In <strong className="text-blue-600">Forward</strong> mode, 
-                        repeat the digits in the <em>same order</em>. In 
-                        <strong className="text-purple-600"> Backward</strong> mode, repeat them in 
-                        <em> reverse order</em>.
+                        <strong>Example:</strong> If you see 
+                        <span className="font-mono text-lg mx-2">5 8 3</span>
+                        you should enter 
+                        <span className="font-mono text-lg mx-2">
+                          {selectedMode === 'forward' ? '5 8 3' : '3 8 5'}
+                        </span>
                       </p>
                     </div>
 
@@ -344,26 +470,25 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-red-600 font-bold">✗</span>
-                          <span><strong>Get 2 wrong in a row:</strong> Current mode ends</span>
+                          <span><strong>Get 2 wrong in a row:</strong> Test ends</span>
                         </li>
                       </ul>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="border border-blue-500/30 bg-blue-500/5 p-3 rounded">
-                        <h3 className="font-semibold text-blue-600 mb-1">Forward Mode</h3>
-                        <p className="text-sm">Starts at 2 digits, tests how long a sequence you can remember</p>
-                      </div>
-                      <div className="border border-purple-500/30 bg-purple-500/5 p-3 rounded">
-                        <h3 className="font-semibold text-purple-600 mb-1">Backward Mode</h3>
-                        <p className="text-sm">Starts at 2 digits, requires mental reversal of the sequence</p>
-                      </div>
+                    <div className={`border border-${modeColor}-500/30 bg-${modeColor}-500/5 p-4 rounded`}>
+                      <h3 className={`font-semibold text-${modeColor}-600 mb-2`}>Your Digit Span Score</h3>
+                      <p className="text-base">
+                        The maximum sequence length you successfully remember represents your 
+                        {selectedMode === 'forward' ? ' short-term' : ' working'} memory span. 
+                        Most people score between 5-9 digits{selectedMode === 'forward' ? ' forward' : ''}, 
+                        {selectedMode === 'backward' ? ' and typically 2 fewer digits backward than forward' : ''}.
+                      </p>
                     </div>
 
                     <div className="border-l-4 border-yellow-500 pl-4 py-2">
                       <p className="text-base">
-                        <strong>Your score:</strong> The maximum span you reach in each mode. 
-                        Higher scores indicate better working memory capacity.
+                        <strong>Scoring:</strong> Higher scores indicate better 
+                        {selectedMode === 'forward' ? ' immediate recall' : ' working memory'} capacity.
                       </p>
                     </div>
 
@@ -376,13 +501,22 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
               )}
 
               <div className="flex justify-between mt-8 pt-6 border-t">
-                <Button
-                  onClick={handleInstructionPrev}
-                  variant="outline"
-                  disabled={instructionPage === 0}
-                >
-                  Previous
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={onExit}
+                    variant="outline"
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    Exit
+                  </Button>
+                  <Button
+                    onClick={handleInstructionPrev}
+                    variant="outline"
+                    disabled={instructionPage === 0}
+                  >
+                    Previous
+                  </Button>
+                </div>
                 
                 <div className="flex gap-2">
                   {[0, 1, 2].map(page => (
@@ -406,130 +540,184 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
     )
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
-      <Card className="max-w-2xl w-full p-8">
-        <div className="space-y-6">
-          <div className="text-center space-y-2">
-            <div className="flex items-center justify-center gap-3">
-              <h2 className="text-3xl font-bold">Digit Span</h2>
-              {gamePhase === 'practice' && (
-                <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100">
-                  Practice
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-              <span className={trialType === 'forward' ? 'text-blue-600 dark:text-blue-400 font-semibold' : ''}>
-                {trialType === 'forward' ? '▶ ' : ''}Forward
-              </span>
-              <span>•</span>
-              <span className={trialType === 'backward' ? 'text-purple-600 dark:text-purple-400 font-semibold' : ''}>
-                {trialType === 'backward' ? '◀ ' : ''}Backward
-              </span>
-              <span>•</span>
-              <span>Span: {currentSpan}</span>
-            </div>
-          </div>
+  const modeColor = selectedMode === 'forward' ? 'blue' : 'purple'
+  const modeName = selectedMode === 'forward' ? 'Digit Span' : 'Reverse Digit Span'
+  const modeInstruction = selectedMode === 'forward' 
+    ? 'Enter the digits in the same order:' 
+    : 'Enter the digits in reverse order:'
 
-          <div className="bg-muted/30 rounded-lg p-12 min-h-[200px] flex items-center justify-center">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
+      {/* Header */}
+      <div className="p-6 border-b border-border/50 backdrop-blur-sm bg-card/50 flex items-center justify-between">
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold">{modeName}</h2>
+            {gamePhase === 'practice' && (
+              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100">
+                Practice
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span className={`text-${modeColor}-600 dark:text-${modeColor}-400 font-semibold`}>
+              {selectedMode === 'forward' ? '▶ Forward' : '◀ Reverse'}
+            </span>
+            <span>•</span>
+            <span>Span: {currentSpan} digits</span>
+          </div>
+        </div>
+        <Button
+          onClick={onExit}
+          variant="outline"
+          size="sm"
+          className="text-red-600 hover:text-red-700"
+        >
+          Exit
+        </Button>
+      </div>
+
+      {/* Main Game Area */}
+      <div className="flex-1 flex items-center justify-center p-8">
+        <Card className="max-w-3xl w-full p-8 shadow-2xl">
+          <div className="space-y-6">
+
+          <div className="bg-gradient-to-br from-muted/50 to-muted/30 rounded-2xl p-16 min-h-[280px] flex items-center justify-center border-2 border-border/50 shadow-inner">
             {isDisplaying ? (
               <AnimatePresence mode="wait">
                 {currentDigitIndex < currentSequence.length && (
                   <motion.div
                     key={currentDigitIndex}
-                    initial={{ scale: 0, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    exit={{ scale: 0, opacity: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="text-8xl font-bold text-primary"
+                    initial={{ scale: 0, opacity: 0, rotate: -10 }}
+                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                    exit={{ scale: 0, opacity: 0, rotate: 10 }}
+                    transition={{ duration: 0.2, type: "spring", stiffness: 300, damping: 20 }}
+                    className="text-9xl font-bold bg-gradient-to-br from-primary to-primary/70 bg-clip-text text-transparent drop-shadow-2xl"
                   >
                     {currentSequence[currentDigitIndex]}
                   </motion.div>
                 )}
               </AnimatePresence>
             ) : isInputPhase ? (
-              <div className="w-full space-y-4">
+              <div className="w-full space-y-6">
                 <div className="text-center">
-                  <p className="text-lg font-medium mb-3">
-                    {trialType === 'forward' 
-                      ? 'Enter the digits in the same order:' 
-                      : 'Enter the digits in reverse order:'}
+                  <p className="text-lg font-semibold mb-4 text-foreground">
+                    {modeInstruction}
                   </p>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg p-4 min-h-[60px] flex items-center justify-center border-2 border-dashed">
+                  <div className="bg-background/80 backdrop-blur-sm rounded-xl p-6 min-h-[80px] flex items-center justify-center border-2 border-dashed border-primary/30 shadow-lg">
                     {userInput.length > 0 ? (
-                      <div className="flex gap-2 text-3xl font-mono">
+                      <div className="flex gap-3 text-4xl font-mono font-bold">
                         {userInput.map((digit, idx) => (
                           <motion.span
                             key={idx}
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="text-primary"
+                            initial={{ scale: 0, y: -20 }}
+                            animate={{ scale: 1, y: 0 }}
+                            transition={{ type: "spring", stiffness: 300 }}
+                            className="text-primary drop-shadow-md"
                           >
                             {digit}
                           </motion.span>
                         ))}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground">Click digits below...</span>
+                      <span className="text-muted-foreground text-lg">Click digits below...</span>
                     )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-5 gap-2 max-w-md mx-auto">
+                <div className="grid grid-cols-5 gap-3 max-w-lg mx-auto">
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(digit => (
                     <Button
                       key={digit}
                       onClick={() => handleDigitClick(digit)}
                       variant="outline"
                       size="lg"
-                      className="text-2xl h-14 hover:bg-primary hover:text-primary-foreground transition-colors"
+                      className="text-3xl h-16 font-bold hover:bg-primary hover:text-primary-foreground hover:scale-105 transition-all duration-200 shadow-md"
                     >
                       {digit}
                     </Button>
                   ))}
                 </div>
 
-                <div className="flex gap-3 justify-center">
+                <div className="flex gap-4 justify-center pt-2">
                   <Button
                     onClick={handleClear}
                     variant="outline"
+                    size="lg"
                     disabled={userInput.length === 0}
+                    className="min-w-[120px] hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
                   >
                     Clear
                   </Button>
                   <Button
                     onClick={handleSubmit}
                     disabled={userInput.length === 0}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    size="lg"
+                    className="min-w-[120px] bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all"
                   >
                     Submit ✓
                   </Button>
                 </div>
               </div>
             ) : (
-              <div className="text-center text-muted-foreground">
-                <p>Get ready...</p>
+              <div className="text-center">
+                <motion.div
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="text-xl font-semibold text-muted-foreground"
+                >
+                  Get ready...
+                </motion.div>
               </div>
             )}
           </div>
 
+          {/* In-game stats (compact version) */}
           {gamePhase === 'test' && (
-            <div className="flex justify-between text-sm">
-              <div>
-                <span className="text-muted-foreground">Consecutive: </span>
-                <span className="font-semibold text-green-600">{consecutiveSuccesses} ✓</span>
-                {' / '}
-                <span className="font-semibold text-red-600">{consecutiveFailures} ✗</span>
+            <div className="flex justify-center gap-8 text-sm pt-4 border-t border-border/30">
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground mb-1">Streak</div>
+                <div className="font-bold">
+                  <span className="text-green-600">{consecutiveSuccesses} ✓</span>
+                  {' / '}
+                  <span className="text-red-600">{consecutiveFailures} ✗</span>
+                </div>
               </div>
-              <div>
-                <span className="text-muted-foreground">Trials: </span>
-                <span className="font-semibold">{results.length}</span>
+              <div className="text-center">
+                <div className="text-xs text-muted-foreground mb-1">Accuracy</div>
+                <div className="font-bold">
+                  {results.length > 0 
+                    ? `${Math.round((results.filter(r => r.correct).length / results.length) * 100)}%`
+                    : '0%'
+                  }
+                </div>
               </div>
             </div>
           )}
         </div>
       </Card>
+      </div>
+
+      {/* Footer Stats */}
+      {gamePhase === 'test' && (
+        <div className="p-6 border-t border-border/50 backdrop-blur-sm bg-card/50">
+          <div className="max-w-3xl mx-auto flex items-center justify-between text-sm">
+            <div className="flex items-center gap-6">
+              <div>
+                <span className="text-muted-foreground">Current Span: </span>
+                <span className="font-bold text-lg">{currentSpan}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Max Span: </span>
+                <span className="font-bold text-lg text-primary">{maxSpan}</span>
+              </div>
+            </div>
+            <div className="text-muted-foreground">
+              Progress: {results.length} trials completed
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
