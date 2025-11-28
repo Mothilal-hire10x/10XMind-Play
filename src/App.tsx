@@ -65,6 +65,8 @@ function AppContent() {
         summary.score,
         summary.accuracy,
         summary.reactionTime,
+        summary.errorCount,
+        summary.errorRate,
         { trials, ...summary.details }
       )
       

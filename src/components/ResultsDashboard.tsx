@@ -25,6 +25,8 @@ function apiToGameResult(apiResult: any): GameResult {
     score: apiResult.score,
     reactionTime: apiResult.reactionTime,
     accuracy: apiResult.accuracy,
+    errorCount: apiResult.errorCount,
+    errorRate: apiResult.errorRate,
     timestamp: apiResult.completedAt,
     details: apiResult.details
   }
@@ -185,6 +187,7 @@ export function ResultsDashboard({ onBack }: ResultsDashboardProps) {
                             <TableHead>Date</TableHead>
                             <TableHead className="text-right">Score</TableHead>
                             <TableHead className="text-right">Accuracy</TableHead>
+                            <TableHead className="text-right">Errors</TableHead>
                             <TableHead className="text-right">Avg RT (ms)</TableHead>
                             <TableHead className="text-right">Performance</TableHead>
                           </TableRow>
@@ -203,6 +206,15 @@ export function ResultsDashboard({ onBack }: ResultsDashboardProps) {
                                     </span>
                                   </TableCell>
                                   <TableCell className="text-right">{result.accuracy.toFixed(1)}%</TableCell>
+                                  <TableCell className="text-right">
+                                    {result.errorCount !== undefined ? (
+                                      <span className="text-destructive font-semibold">
+                                        {result.errorCount} ({result.errorRate?.toFixed(1)}%)
+                                      </span>
+                                    ) : (
+                                      <span className="text-muted-foreground">-</span>
+                                    )}
+                                  </TableCell>
                                   <TableCell className="text-right">
                                     {result.reactionTime ? result.reactionTime.toFixed(0) : 'N/A'}
                                   </TableCell>

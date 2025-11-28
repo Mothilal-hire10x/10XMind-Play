@@ -16,6 +16,8 @@ function toGameResultResponse(result: GameResult): GameResultResponse {
     score: result.score,
     accuracy: result.accuracy,
     reactionTime: result.reaction_time,
+    errorCount: result.error_count,
+    errorRate: result.error_rate,
     details: result.details ? JSON.parse(result.details) : null,
     completedAt: result.completed_at
   };
@@ -38,7 +40,7 @@ router.post(
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { gameId, score, accuracy, reactionTime, details } = req.body;
+    const { gameId, score, accuracy, reactionTime, errorCount, errorRate, details } = req.body;
     const db = getDatabase(process.env.DATABASE_PATH!);
 
     try {
@@ -46,8 +48,8 @@ router.post(
       const now = Date.now();
 
       await db.run(
-        `INSERT INTO game_results (id, user_id, game_id, score, accuracy, reaction_time, details, completed_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO game_results (id, user_id, game_id, score, accuracy, reaction_time, error_count, error_rate, details, completed_at) 
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           resultId,
           req.user!.id,
@@ -55,6 +57,8 @@ router.post(
           score,
           accuracy,
           reactionTime,
+          errorCount !== undefined ? errorCount : null,
+          errorRate !== undefined ? errorRate : null,
           details ? JSON.stringify(details) : null,
           now
         ]

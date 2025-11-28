@@ -51,6 +51,8 @@ function apiToGameResult(apiResult: any): GameResult {
     score: apiResult.score,
     reactionTime: apiResult.reactionTime,
     accuracy: apiResult.accuracy,
+    errorCount: apiResult.errorCount,
+    errorRate: apiResult.errorRate,
     timestamp: apiResult.completedAt,
     details: apiResult.details
   }
@@ -141,6 +143,7 @@ export function AdminDashboard() {
           avgScore: 0,
           avgAccuracy: 0,
           avgReactionTime: 0,
+          avgErrorRate: 0,
           lastPlayed: null
         }
       }
@@ -148,8 +151,12 @@ export function AdminDashboard() {
       const totalScore = studentResults.reduce((sum, r) => sum + r.score, 0)
       const totalAccuracy = studentResults.reduce((sum, r) => sum + r.accuracy, 0)
       const reactionTimes = studentResults.filter(r => r.reactionTime).map(r => r.reactionTime!)
+      const errorRates = studentResults.filter(r => r.errorRate !== undefined).map(r => r.errorRate!)
       const avgReactionTime = reactionTimes.length > 0 
         ? reactionTimes.reduce((sum, rt) => sum + rt, 0) / reactionTimes.length 
+        : 0
+      const avgErrorRate = errorRates.length > 0
+        ? errorRates.reduce((sum, er) => sum + er, 0) / errorRates.length
         : 0
       const lastPlayed = Math.max(...studentResults.map(r => r.timestamp))
 
@@ -159,6 +166,7 @@ export function AdminDashboard() {
         avgScore: totalScore / studentResults.length,
         avgAccuracy: totalAccuracy / studentResults.length,
         avgReactionTime,
+        avgErrorRate,
         lastPlayed
       }
     }).sort((a, b) => b.gamesPlayed - a.gamesPlayed)
@@ -466,7 +474,7 @@ export function AdminDashboard() {
                             </div>
                             
                             {stat.gamesPlayed > 0 ? (
-                              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-1">Avg Score</p>
                                   <p className="text-lg font-bold text-primary">{stat.avgScore.toFixed(0)}</p>
@@ -474,6 +482,10 @@ export function AdminDashboard() {
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-1">Accuracy</p>
                                   <p className="text-lg font-bold text-green-600">{stat.avgAccuracy.toFixed(1)}%</p>
+                                </div>
+                                <div>
+                                  <p className="text-xs text-muted-foreground mb-1">Error Rate</p>
+                                  <p className="text-lg font-bold text-destructive">{stat.avgErrorRate.toFixed(1)}%</p>
                                 </div>
                                 <div>
                                   <p className="text-xs text-muted-foreground mb-1">Reaction Time</p>

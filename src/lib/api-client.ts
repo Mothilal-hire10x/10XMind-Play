@@ -77,10 +77,10 @@ export const authAPI = {
 
 // Results API
 export const resultsAPI = {
-  async saveResult(gameId: string, score: number, accuracy: number, reactionTime: number, details?: any) {
+  async saveResult(gameId: string, score: number, accuracy: number, reactionTime: number, errorCount?: number, errorRate?: number, details?: any) {
     const data = await apiRequest<{ result: any }>('/results', {
       method: 'POST',
-      body: JSON.stringify({ gameId, score, accuracy, reactionTime, details }),
+      body: JSON.stringify({ gameId, score, accuracy, reactionTime, errorCount, errorRate, details }),
     });
     return data.result;
   },

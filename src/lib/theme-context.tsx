@@ -11,11 +11,11 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useKV<Theme>('theme', 'light')
+  const [theme, setTheme] = useKV<Theme>('theme', 'dark')
 
   useEffect(() => {
     const root = document.documentElement
-    const currentTheme = theme || 'light'
+    const currentTheme = theme || 'dark'
     if (currentTheme === 'dark') {
       root.classList.add('dark')
     } else {
@@ -24,12 +24,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme])
 
   const toggleTheme = () => {
-    const currentTheme = theme || 'light'
+    const currentTheme = theme || 'dark'
     setTheme(currentTheme === 'light' ? 'dark' : 'light')
   }
 
   return (
-    <ThemeContext.Provider value={{ theme: theme || 'light', toggleTheme }}>
+    <ThemeContext.Provider value={{ theme: theme || 'dark', toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   )

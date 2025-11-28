@@ -79,6 +79,31 @@ export async function runMigrations(skipClose = false) {
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token)
   `);
 
+  // Add error_count and error_rate columns to game_results table if they don't exist
+  try {
+    await db.run(`
+      ALTER TABLE game_results ADD COLUMN error_count INTEGER
+    `);
+    console.log('✅ Added error_count column to game_results table');
+  } catch (err: any) {
+    // Column already exists or error - that's okay
+    if (!err.message.includes('duplicate column')) {
+      console.log('ℹ️ error_count column likely already exists');
+    }
+  }
+
+  try {
+    await db.run(`
+      ALTER TABLE game_results ADD COLUMN error_rate REAL
+    `);
+    console.log('✅ Added error_rate column to game_results table');
+  } catch (err: any) {
+    // Column already exists or error - that's okay
+    if (!err.message.includes('duplicate column')) {
+      console.log('ℹ️ error_rate column likely already exists');
+    }
+  }
+
   console.log('✅ Database migrations completed successfully!');
 
   if (!skipClose) {
