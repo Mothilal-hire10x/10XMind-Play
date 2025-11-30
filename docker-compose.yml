@@ -1,0 +1,33 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: 10xmind-play-app
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./server/data:/app/server/data
+      - ./.env:/app/.env:ro
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_PATH: /app/server/data/database.sqlite
+      JWT_SECRET: ${JWT_SECRET:-10xmind-cognitive-testing-secret-key-2025}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3001}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@10xscale.ai}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Jack@123}
+    restart: unless-stopped
+    networks:
+      - 10xmind-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+networks:
+  10xmind-network:
+    driver: bridge

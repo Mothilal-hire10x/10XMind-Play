@@ -9,13 +9,19 @@ import { resolve } from 'path'
 const projectRoot = process.env.PROJECT_ROOT || import.meta.dirname
 
 // https://vite.dev/config/
+const resolvedPort = Number(process.env.PORT || process.env.VITE_PORT) || 3700;
+
 export default defineConfig({
+  server: {
+    host: process.env.VITE_HOST || '0.0.0.0',
+    port: resolvedPort,
+  },
   plugins: [
     react(),
     tailwindcss(),
     // DO NOT REMOVE
     createIconImportProxy() as PluginOption,
-    sparkPlugin() as PluginOption,
+    sparkPlugin({ port: resolvedPort }) as PluginOption,
   ],
   resolve: {
     alias: {

@@ -1,0 +1,26 @@
+version: '3.9'
+
+services:
+  frontend:
+    image: node:20-alpine
+    container_name: 10xmind-play-frontend-dev
+    working_dir: /app
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      PORT: 3700
+      VITE_PORT: 3700
+      VITE_HOST: 0.0.0.0
+      VITE_API_URL: http://localhost:3701/api
+    ports:
+      - "3700:3700"
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0 --port 3700"
+    restart: unless-stopped
+    networks:
+      - 10xmind-network
+
+networks:
+  10xmind-network:
+    driver: bridge

@@ -1,0 +1,30 @@
+version: '3.9'
+
+services:
+  backend:
+    image: node:20-alpine
+    container_name: 10xmind-play-backend-dev
+    working_dir: /app/server
+    volumes:
+      - ./server:/app/server
+      - ./server/data:/app/server/data
+      - ./.env:/app/.env:ro
+    environment:
+      NODE_ENV: development
+      PORT: 3701
+      DATABASE_PATH: /app/server/data/database.sqlite
+      JWT_SECRET: ${JWT_SECRET:-10xmind-cognitive-testing-secret-key-2025}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3700}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@10xscale.ai}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-Jack@123}
+    ports:
+      - "3701:3701"
+    command: sh -c "npm ci && npm run dev"
+    restart: unless-stopped
+    networks:
+      - 10xmind-network
+
+networks:
+  10xmind-network:
+    driver: bridge

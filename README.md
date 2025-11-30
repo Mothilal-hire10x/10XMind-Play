@@ -92,7 +92,37 @@ npm run seed
     ```bash
     npm run dev
     ```
-    *The application will be available at `http://localhost:5173`.*
+    *The application will be available at `http://localhost:3700`.*
+
+### Docker Compose (development)
+
+If you'd like to run frontend and backend in development mode using Docker, there are two compose files included:
+
+- `docker-compose.backend.yml` — runs the backend dev server (ts-node-dev) and mounts `./server` and `./server/data`.
+- `docker-compose.frontend.yml` — runs the frontend dev server (vite) and mounts the project root.
+
+Examples:
+
+Start backend in Docker:
+```bash
+docker compose -f docker-compose.backend.yml up --build
+```
+
+Start frontend in Docker:
+```bash
+docker compose -f docker-compose.frontend.yml up --build
+```
+
+You can also run both services together if you want them on the same network (two terminals):
+```bash
+docker compose -f docker-compose.backend.yml up --build
+docker compose -f docker-compose.frontend.yml up --build
+```
+
+Notes:
+- The backend will expose port `3701` and the frontend `3700`.
+- We mount `/app/node_modules` as an anonymous volume to avoid overwriting dependencies installed inside the container.
+- The backend uses a mounted `./server/data` directory so your SQLite database persists between runs.
 
 ## 📂 Project Structure
 
