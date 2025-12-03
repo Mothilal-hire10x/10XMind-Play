@@ -4,15 +4,17 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { TrialResult, GameSummary } from '@/lib/types'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, RotateCcw } from 'lucide-react'
+import { ArrowRight, RotateCcw, Check } from 'lucide-react'
 
 const INITIAL_SPAN = 2
 const MAX_SPAN = 9
 const DIGIT_DISPLAY_DURATION = 1000
+const PRACTICE_TRIALS = 5 // Number of practice trials before actual test
 
 interface DigitSpanTaskProps {
   onComplete: (results: TrialResult[], summary: GameSummary) => void
   onExit: () => void
+  defaultMode?: TrialType
 }
 
 type GamePhase = 'modeSelection' | 'instructions' | 'practice' | 'test'
@@ -28,10 +30,11 @@ interface Trial {
   isPractice?: boolean
 }
 
-export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
-  const [gamePhase, setGamePhase] = useState<GamePhase>('modeSelection')
+export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTaskProps) {
+  const [gamePhase, setGamePhase] = useState<GamePhase>(defaultMode ? 'instructions' : 'modeSelection')
   const [instructionPage, setInstructionPage] = useState(0)
-  const [selectedMode, setSelectedMode] = useState<TrialType | null>(null)
+  const [selectedMode, setSelectedMode] = useState<TrialType | null>(defaultMode || null)
+  const [practiceComplete, setPracticeComplete] = useState(false)
   
   const [currentSpan, setCurrentSpan] = useState(INITIAL_SPAN)
   const [currentSequence, setCurrentSequence] = useState<number[]>([])
@@ -45,6 +48,9 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
   const [consecutiveFailures, setConsecutiveFailures] = useState(0)
   const [consecutiveSuccesses, setConsecutiveSuccesses] = useState(0)
   const [maxSpan, setMaxSpan] = useState(INITIAL_SPAN - 1)
+  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null)
+  const [practiceTrialCount, setPracticeTrialCount] = useState(0)
+  const [showGetReady, setShowGetReady] = useState(true)
 
   const generateSequence = (length: number): number[] => {
     return Array.from({ length }, () => Math.floor(Math.random() * 10))
@@ -55,10 +61,17 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
     console.log('Starting new trial with sequence:', sequence, 'span:', currentSpan)
     setCurrentSequence(sequence)
     setUserInput([])
-    setIsDisplaying(true)
+    setFeedback(null)
+    setShowGetReady(true)
     setCurrentDigitIndex(0)
     setIsInputPhase(false)
-    setTrialStartTime(Date.now())
+    
+    // Show "Get ready" message for 2 seconds before displaying digits
+    setTimeout(() => {
+      setShowGetReady(false)
+      setIsDisplaying(true)
+      setTrialStartTime(Date.now())
+    }, 2000)
   }
 
   useEffect(() => {
@@ -99,6 +112,10 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
     setUserInput([])
   }
 
+  const handleBackspace = () => {
+    setUserInput(prev => prev.slice(0, -1))
+  }
+
   const handleSubmit = () => {
     if (userInput.length === 0 || !selectedMode) return
 
@@ -120,45 +137,56 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
       isPractice: gamePhase === 'practice'
     }
 
-    if (gamePhase === 'practice') {
-      setGamePhase('test')
-      setCurrentSpan(INITIAL_SPAN)
-      setConsecutiveFailures(0)
-      setConsecutiveSuccesses(0)
-      return
-    }
+    // Show feedback
+    setFeedback(correct ? 'correct' : 'incorrect')
+    setIsInputPhase(false)
 
-    setResults(prev => [...prev, trial])
-
-    if (correct) {
-      setConsecutiveSuccesses(prev => prev + 1)
-      setConsecutiveFailures(0)
-
-      if (consecutiveSuccesses + 1 >= 2) {
-        const newSpan = currentSpan + 1
+    // Wait for feedback display then continue
+    setTimeout(() => {
+      if (gamePhase === 'practice') {
+        const newPracticeCount = practiceTrialCount + 1
+        setPracticeTrialCount(newPracticeCount)
         
-        if (newSpan > MAX_SPAN) {
-          setMaxSpan(currentSpan)
-          finishGame()
+        if (newPracticeCount >= PRACTICE_TRIALS) {
+          setPracticeComplete(true)
           return
-        } else {
-          setMaxSpan(currentSpan)
-          setCurrentSpan(newSpan)
-          setConsecutiveSuccesses(0)
         }
-      }
-    } else {
-      setConsecutiveFailures(prev => prev + 1)
-      setConsecutiveSuccesses(0)
-
-      if (consecutiveFailures + 1 >= 2) {
-        setMaxSpan(Math.max(currentSpan - 1, INITIAL_SPAN - 1))
-        finishGame()
+        startNewTrial(true)
         return
       }
-    }
 
-    startNewTrial()
+      setResults(prev => [...prev, trial])
+
+      if (correct) {
+        setConsecutiveSuccesses(prev => prev + 1)
+        setConsecutiveFailures(0)
+
+        if (consecutiveSuccesses + 1 >= 2) {
+          const newSpan = currentSpan + 1
+          
+          if (newSpan > MAX_SPAN) {
+            setMaxSpan(currentSpan)
+            finishGame()
+            return
+          } else {
+            setMaxSpan(currentSpan)
+            setCurrentSpan(newSpan)
+            setConsecutiveSuccesses(0)
+          }
+        }
+      } else {
+        setConsecutiveFailures(prev => prev + 1)
+        setConsecutiveSuccesses(0)
+
+        if (consecutiveFailures + 1 >= 2) {
+          setMaxSpan(Math.max(currentSpan - 1, INITIAL_SPAN - 1))
+          finishGame()
+          return
+        }
+      }
+
+      startNewTrial()
+    }, 1500) // Show feedback for 1.5 seconds
   }
 
   const finishGame = () => {
@@ -196,7 +224,8 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
         totalTrials,
         maxSpan: finalMaxSpan,
         mode: selectedMode,
-        correctSequences: totalCorrect
+        correctSequences: totalCorrect,
+        customMessage: `You successfully remembered the sequence ${totalCorrect} times in a row. Your best sequence length: ${finalMaxSpan}`
       }
     }
 
@@ -220,6 +249,47 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
     if (instructionPage > 0) {
       setInstructionPage(prev => prev - 1)
     }
+  }
+
+  // Practice Complete Transition Screen
+  if (practiceComplete) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+        <Card className="max-w-2xl w-full p-8 shadow-2xl cursor-pointer hover:shadow-3xl transition-all border-2 border-green-500/30 bg-green-500/5" onClick={() => {
+          setPracticeComplete(false)
+          setGamePhase('test')
+          setCurrentSpan(INITIAL_SPAN)
+          setConsecutiveFailures(0)
+          setConsecutiveSuccesses(0)
+          setPracticeTrialCount(0)
+        }}>
+          <div className="text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="p-4 bg-green-100 dark:bg-green-900 rounded-full">
+                <Check className="w-16 h-16 text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-3xl font-bold">Trial Over!</h2>
+              <p className="text-xl text-muted-foreground">
+                Now concentrate for the real game.
+              </p>
+            </div>
+            <div className="bg-muted/50 p-6 rounded-lg space-y-3">
+              <p className="text-xl font-bold text-primary">
+                Your training trial is completed. The real test begins now. Focus!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                The test will continue until you make 2 consecutive errors.
+              </p>
+            </div>
+            <p className="text-primary font-semibold animate-pulse text-lg">
+              Click to continue
+            </p>
+          </div>
+        </Card>
+      </div>
+    )
   }
 
   // Mode Selection Screen
@@ -554,8 +624,8 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
           <div className="flex items-center gap-3">
             <h2 className="text-2xl font-bold">{modeName}</h2>
             {gamePhase === 'practice' && (
-              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100">
-                Practice
+              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 text-base px-3 py-1">
+                🎯 PRACTICE TRIAL
               </Badge>
             )}
           </div>
@@ -563,8 +633,6 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
             <span className={`text-${modeColor}-600 dark:text-${modeColor}-400 font-semibold`}>
               {selectedMode === 'forward' ? '▶ Forward' : '◀ Reverse'}
             </span>
-            <span>•</span>
-            <span>Span: {currentSpan} digits</span>
           </div>
         </div>
         <Button
@@ -582,8 +650,59 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
         <Card className="max-w-3xl w-full p-8 shadow-2xl">
           <div className="space-y-6">
 
-          <div className="bg-gradient-to-br from-muted/50 to-muted/30 rounded-2xl p-16 min-h-[280px] flex items-center justify-center border-2 border-border/50 shadow-inner">
-            {isDisplaying ? (
+          <div className={`bg-gradient-to-br from-muted/50 to-muted/30 rounded-2xl p-16 min-h-[280px] flex items-center justify-center border-2 shadow-inner transition-all duration-300 ${
+            feedback === 'correct' ? 'border-green-500 bg-green-500/10' : 
+            feedback === 'incorrect' ? 'border-red-500 bg-red-500/10' : 
+            'border-border/50'
+          }`}>
+            {/* Feedback Display */}
+            {feedback && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-center space-y-4"
+              >
+                <div className={`text-8xl ${feedback === 'correct' ? 'text-green-500' : 'text-red-500'}`}>
+                  {feedback === 'correct' ? '✓' : '✗'}
+                </div>
+                <div className={`text-3xl font-bold ${feedback === 'correct' ? 'text-green-600' : 'text-red-600'}`}>
+                  {feedback === 'correct' ? 'Correct!' : 'Incorrect'}
+                </div>
+                {feedback === 'incorrect' && (
+                  <div className="text-muted-foreground">
+                    Expected: <span className="font-mono font-bold">
+                      {selectedMode === 'forward' 
+                        ? currentSequence.join(' ') 
+                        : [...currentSequence].reverse().join(' ')}
+                    </span>
+                  </div>
+                )}
+              </motion.div>
+            )}
+
+            {/* Get Ready Prompt */}
+            {!feedback && showGetReady && !isDisplaying && !isInputPhase && (
+              <div className="text-center space-y-4">
+                <motion.div
+                  animate={{ opacity: [0.5, 1, 0.5] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                  className="text-2xl font-bold text-primary"
+                >
+                  Get ready to memorize the digits
+                </motion.div>
+                <div className="text-lg text-muted-foreground">
+                  Focus and pay attention...
+                </div>
+                {gamePhase === 'practice' && (
+                  <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100">
+                    Practice Trial {practiceTrialCount + 1} of {PRACTICE_TRIALS}
+                  </Badge>
+                )}
+              </div>
+            )}
+
+            {/* Digit Display */}
+            {!feedback && isDisplaying && (
               <AnimatePresence mode="wait">
                 {currentDigitIndex < currentSequence.length && (
                   <motion.div
@@ -592,13 +711,16 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
                     animate={{ scale: 1, opacity: 1, rotate: 0 }}
                     exit={{ scale: 0, opacity: 0, rotate: 10 }}
                     transition={{ duration: 0.2, type: "spring", stiffness: 300, damping: 20 }}
-                    className="text-9xl font-bold bg-gradient-to-br from-primary to-primary/70 bg-clip-text text-transparent drop-shadow-2xl"
+                    className="text-9xl font-bold text-red-800 dark:text-red-700 drop-shadow-2xl"
                   >
                     {currentSequence[currentDigitIndex]}
                   </motion.div>
                 )}
               </AnimatePresence>
-            ) : isInputPhase ? (
+            )}
+
+            {/* Input Phase */}
+            {!feedback && isInputPhase && (
               <div className="w-full space-y-6">
                 <div className="text-center">
                   <p className="text-lg font-semibold mb-4 text-foreground">
@@ -639,81 +761,55 @@ export function DigitSpanTask({ onComplete, onExit }: DigitSpanTaskProps) {
                   ))}
                 </div>
 
-                <div className="flex gap-4 justify-center pt-2">
+                <div className="flex gap-3 justify-center pt-2">
+                  <Button
+                    onClick={handleBackspace}
+                    variant="outline"
+                    size="lg"
+                    disabled={userInput.length === 0}
+                    className="min-w-[110px] hover:bg-orange-500/10 hover:text-orange-600 hover:border-orange-500"
+                  >
+                    ⌫ Backspace
+                  </Button>
                   <Button
                     onClick={handleClear}
                     variant="outline"
                     size="lg"
                     disabled={userInput.length === 0}
-                    className="min-w-[120px] hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
+                    className="min-w-[110px] hover:bg-destructive/10 hover:text-destructive hover:border-destructive"
                   >
-                    Clear
+                    Clear All
                   </Button>
                   <Button
                     onClick={handleSubmit}
                     disabled={userInput.length === 0}
                     size="lg"
-                    className="min-w-[120px] bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all"
+                    className="min-w-[110px] bg-green-600 hover:bg-green-700 text-white shadow-lg hover:shadow-xl transition-all"
                   >
                     Submit ✓
                   </Button>
                 </div>
               </div>
-            ) : (
-              <div className="text-center">
-                <motion.div
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                  className="text-xl font-semibold text-muted-foreground"
-                >
-                  Get ready...
-                </motion.div>
-              </div>
             )}
           </div>
-
-          {/* In-game stats (compact version) */}
-          {gamePhase === 'test' && (
-            <div className="flex justify-center gap-8 text-sm pt-4 border-t border-border/30">
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Streak</div>
-                <div className="font-bold">
-                  <span className="text-green-600">{consecutiveSuccesses} ✓</span>
-                  {' / '}
-                  <span className="text-red-600">{consecutiveFailures} ✗</span>
-                </div>
-              </div>
-              <div className="text-center">
-                <div className="text-xs text-muted-foreground mb-1">Accuracy</div>
-                <div className="font-bold">
-                  {results.length > 0 
-                    ? `${Math.round((results.filter(r => r.correct).length / results.length) * 100)}%`
-                    : '0%'
-                  }
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </Card>
       </div>
 
       {/* Footer Stats */}
+      {gamePhase === 'practice' && (
+        <div className="p-6 border-t border-border/50 backdrop-blur-sm bg-card/50">
+          <div className="max-w-3xl mx-auto flex items-center justify-center text-sm">
+            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 px-4 py-2">
+              Practice Trial {practiceTrialCount + 1} of {PRACTICE_TRIALS}
+            </Badge>
+          </div>
+        </div>
+      )}
       {gamePhase === 'test' && (
         <div className="p-6 border-t border-border/50 backdrop-blur-sm bg-card/50">
           <div className="max-w-3xl mx-auto flex items-center justify-between text-sm">
             <div className="flex items-center gap-6">
-              <div>
-                <span className="text-muted-foreground">Current Span: </span>
-                <span className="font-bold text-lg">{currentSpan}</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground">Max Span: </span>
-                <span className="font-bold text-lg text-primary">{maxSpan}</span>
-              </div>
-            </div>
-            <div className="text-muted-foreground">
-              Progress: {results.length} trials completed
             </div>
           </div>
         </div>
