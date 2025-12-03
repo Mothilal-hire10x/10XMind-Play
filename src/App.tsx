@@ -13,6 +13,8 @@ import { StroopTask } from '@/components/games/StroopTask'
 import { FlankerTask } from '@/components/games/FlankerTask'
 import { SimonTask } from '@/components/games/SimonTask'
 import { DigitSpanTask } from '@/components/games/DigitSpanTask'
+import { DigitSpanForward } from '@/components/games/DigitSpanForward'
+import { DigitSpanBackward } from '@/components/games/DigitSpanBackward'
 import { CorsiBlockTask } from '@/components/games/CorsiBlockTask'
 import { TowerOfHanoi } from '@/components/games/TowerOfHanoi'
 import { SART } from '@/components/games/SART'
@@ -104,6 +106,10 @@ function AppContent() {
         return <FlankerTask {...gameProps} />
       case 'simon':
         return <SimonTask {...gameProps} />
+      case 'digit-span-forward':
+        return <DigitSpanForward {...gameProps} />
+      case 'digit-span-backward':
+        return <DigitSpanBackward {...gameProps} />
       case 'digit-span':
         return <DigitSpanTask {...gameProps} />
       case 'corsi':

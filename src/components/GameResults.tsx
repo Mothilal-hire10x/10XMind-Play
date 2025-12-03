@@ -13,6 +13,12 @@ interface GameResultsProps {
     reactionTime: number
     errorCount?: number
     errorRate?: number
+    details?: {
+      customMessage?: string
+      maxSpan?: number
+      correctSequences?: number
+      [key: string]: any
+    }
   }
   onContinue: () => void
 }
@@ -71,6 +77,20 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
             >
               <Badge className={badge.className}>{badge.label}</Badge>
             </motion.div>
+
+            {/* Custom message for Digit Span and similar tests */}
+            {summary.details?.customMessage && (
+              <motion.div
+                className="bg-gradient-to-br from-primary/10 to-blue-500/5 p-4 rounded-lg border border-primary/20 text-center"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+              >
+                <p className="text-lg font-semibold text-foreground">
+                  {summary.details.customMessage}
+                </p>
+              </motion.div>
+            )}
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <motion.div 
