@@ -27,12 +27,13 @@ interface Trial {
 
 type GamePhase = 'instructions' | 'practice' | 'test'
 
-const TOTAL_TRIALS = 20
-const PRACTICE_TRIALS = 1
+const TOTAL_TRIALS = 15
+const PRACTICE_TRIALS = 2
 
 export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>('instructions')
   const [instructionPage, setInstructionPage] = useState(0)
+  const [practiceComplete, setPracticeComplete] = useState(false)
   const [currentTrial, setCurrentTrial] = useState(0)
   const [trialData, setTrialData] = useState<Trial | null>(null)
   const [startTime, setStartTime] = useState(0)
@@ -41,12 +42,12 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
   const [errorTypes, setErrorTypes] = useState({ mirror: 0, rotation: 0 })
 
   const generateTrial = useCallback((): Trial => {
-    // Use asymmetric 3D block figures (inspired by Shepard-Metzler cubes)
+    // Use simpler 3D block figures with fewer, easier rotation angles
     const figures = [
-      'figure1', 'figure2', 'figure3', 'figure4', 'figure5', 
-      'figure6', 'figure7', 'figure8', 'figure9', 'figure10'
+      'figure1', 'figure2', 'figure3', 'figure4', 'figure5'
     ]
-    const rotations = [0, 60, 90, 120, 180, 240, 270, 300]
+    // Simplified to only 4 rotation angles (90-degree increments)
+    const rotations = [0, 90, 180, 270]
     
     const figureType = figures[Math.floor(Math.random() * figures.length)]
     const targetRotation = rotations[Math.floor(Math.random() * rotations.length)]
@@ -84,10 +85,7 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
     
     if (currentTrial >= maxTrials) {
       if (gamePhase === 'practice') {
-        setGamePhase('test')
-        setCurrentTrial(0)
-        setResults([])
-        setErrorTypes({ mirror: 0, rotation: 0 })
+        setPracticeComplete(true)
         return
       }
       
@@ -105,7 +103,8 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
         details: {
           errorTypes,
           avgReactionTime: avgRT,
-          totalTrials: TOTAL_TRIALS
+          totalTrials: TOTAL_TRIALS,
+          rotationAngles: '0°, 90°, 180°, 270° (simplified)'
         }
       })
       return
@@ -319,7 +318,7 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
   }
 
   const handleInstructionNext = () => {
-    if (instructionPage < 2) {
+    if (instructionPage < 3) {
       setInstructionPage(prev => prev + 1)
     } else {
       setGamePhase('practice')
@@ -333,6 +332,49 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
   }
 
   // Instruction Pages
+  // Practice complete transition screen
+  if (practiceComplete) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+        <Card 
+          className="max-w-2xl w-full p-8 shadow-2xl cursor-pointer hover:shadow-3xl transition-all border-2 border-green-500/30 bg-green-500/5"
+          onClick={() => {
+            setPracticeComplete(false)
+            setGamePhase('test')
+            setCurrentTrial(0)
+            setResults([])
+            setErrorTypes({ mirror: 0, rotation: 0 })
+          }}
+        >
+          <div className="text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="p-4 bg-green-100 dark:bg-green-900 rounded-full">
+                <Check size={64} weight="bold" className="text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-3xl font-bold">Trial Session Completed!</h2>
+              <p className="text-xl text-muted-foreground">
+                You are now entering the actual game.
+              </p>
+            </div>
+            <div className="bg-muted/50 p-6 rounded-lg space-y-2">
+              <p className="text-lg font-semibold">
+                Your training trial is completed. The real test begins now. Focus!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                You'll complete {TOTAL_TRIALS} trials testing your mental rotation abilities.
+              </p>
+            </div>
+            <p className="text-primary font-semibold animate-pulse">
+              Click anywhere to continue
+            </p>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
   if (gamePhase === 'instructions') {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
@@ -363,8 +405,8 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
                     
                     <p>
                       This test assesses your ability to mentally rotate 3D block figures and identify 
-                      which rotated version matches the target figure. One option will be the same figure 
-                      rotated, the other will be a mirror image (reflection).
+                      which rotated version matches the target figure. The figures will be rotated at 
+                      simple 90-degree angles to make it easier.
                     </p>
 
                     <div className="bg-muted/50 p-4 rounded-lg">
@@ -450,11 +492,11 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
                       <ul className="space-y-2">
                         <li className="flex items-start gap-2">
                           <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">Practice</Badge>
-                          <span>1 practice trial to get familiar with the task</span>
+                          <span>2 practice trials to get familiar with the task</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <Badge variant="outline">Test</Badge>
-                          <span>20 test trials with varying difficulty</span>
+                          <span>15 test trials (simplified with 90° rotations)</span>
                         </li>
                       </ul>
                     </div>
@@ -489,6 +531,54 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
                 </div>
               )}
 
+              {instructionPage === 3 && (
+                <div className="space-y-6">
+                  <div className="text-center mb-4">
+                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 text-lg px-4 py-2">
+                      🎯 About the Practice Trials
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-4 text-lg">
+                    <p>
+                      Before the actual test, you'll complete <strong>2 practice trials</strong> to get comfortable with mental rotation.
+                    </p>
+                    
+                    <div className="bg-muted/50 p-6 rounded-lg space-y-3">
+                      <p className="font-semibold mb-3">During practice, you will see:</p>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl text-green-600">✓</span>
+                        <p className="text-base">
+                          A <strong className="text-green-600">green checkmark</strong> when you correctly identify matching shapes
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl text-red-600">✗</span>
+                        <p className="text-base">
+                          A <strong className="text-red-600">red X</strong> when your answer is incorrect
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">🔄</span>
+                        <p className="text-base">
+                          The card border will <strong>change color</strong> to provide instant feedback
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-primary/10 p-4 rounded-lg border-l-4 border-primary">
+                      <p className="text-base font-semibold">
+                        💡 Strategy Tip: Mentally rotate one shape to see if it matches the other. Mirror images can't be rotated to match!
+                      </p>
+                    </div>
+
+                    <p className="text-center text-muted-foreground text-base mt-4">
+                      Use these practice trials to develop your mental rotation strategy before the scored test.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between mt-8 pt-6 border-t">
                 <Button
                   onClick={handleInstructionPrev}
@@ -499,7 +589,7 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
                 </Button>
                 
                 <div className="flex gap-2">
-                  {[0, 1, 2].map(page => (
+                  {[0, 1, 2, 3].map(page => (
                     <div
                       key={page}
                       className={`h-2 w-2 rounded-full transition-colors ${
@@ -510,7 +600,7 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
                 </div>
 
                 <Button onClick={handleInstructionNext}>
-                  {instructionPage === 2 ? 'Start Practice' : 'Next'}
+                  {instructionPage === 3 ? 'Start Practice' : 'Next'}
                 </Button>
               </div>
             </motion.div>
@@ -598,10 +688,10 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
 
                 <div className="text-center mb-8">
                   <p className="text-lg font-semibold text-muted-foreground mb-2">
-                    One of the red objects is a rotated version of the grey one.
+                    Which red object matches the grey one when rotated?
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Click the red object which matches the top one.
+                    The shapes rotate in 90° steps. Imagine turning the grey shape.
                   </p>
                 </div>
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { X, Timer, Lightning } from '@phosphor-icons/react'
+import { X, Timer, Lightning, Check } from '@phosphor-icons/react'
 import { TrialResult, GameSummary } from '@/lib/types'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -24,6 +24,7 @@ type GamePhase = 'instructions' | 'practice' | 'test'
 export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>('instructions')
   const [instructionPage, setInstructionPage] = useState(0)
+  const [practiceComplete, setPracticeComplete] = useState(false)
   
   const [testPart, setTestPart] = useState<'A' | 'B'>('A')
   const [circles, setCircles] = useState<Circle[]>([])
@@ -137,11 +138,8 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
         setIsComplete(true)
 
         if (gamePhase === 'practice') {
-          // Practice complete, move to test
-          setTimeout(() => {
-            setGamePhase('test')
-            setTestPart('A')
-          }, 2000)
+          // Practice complete, show transition screen
+          setPracticeComplete(true)
         } else if (testPart === 'A') {
           // Save TMT-A results and start TMT-B
           setTestATime(completedTime)
@@ -191,7 +189,7 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
   }, [circles, currentTarget, isComplete, testPart, startTime, errors, testATime, gamePhase, onComplete, results])
 
   const handleInstructionNext = () => {
-    if (instructionPage < 2) {
+    if (instructionPage < 3) {
       setInstructionPage(prev => prev + 1)
     } else {
       setGamePhase('practice')
@@ -202,6 +200,47 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
     if (instructionPage > 0) {
       setInstructionPage(prev => prev - 1)
     }
+  }
+
+  // Practice complete transition screen
+  if (practiceComplete) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+        <Card 
+          className="max-w-2xl w-full p-8 shadow-2xl cursor-pointer hover:shadow-3xl transition-all border-2 border-green-500/30 bg-green-500/5"
+          onClick={() => {
+            setPracticeComplete(false)
+            setGamePhase('test')
+            setTestPart('A')
+          }}
+        >
+          <div className="text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="p-4 bg-green-100 dark:bg-green-900 rounded-full">
+                <Check size={64} weight="bold" className="text-green-600 dark:text-green-400" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-3xl font-bold">Trial Session Completed!</h2>
+              <p className="text-xl text-muted-foreground">
+                You are now entering the actual game.
+              </p>
+            </div>
+            <div className="bg-muted/50 p-6 rounded-lg space-y-2">
+              <p className="text-lg font-semibold">
+                Your training trial is completed. The real test begins now. Focus!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                You'll complete Part A (25 numbered circles) and then Part B (alternating numbers and letters).
+              </p>
+            </div>
+            <p className="text-primary font-semibold animate-pulse">
+              Click anywhere to continue
+            </p>
+          </div>
+        </Card>
+      </div>
+    )
   }
 
   if (gamePhase === 'instructions') {
@@ -378,6 +417,60 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
                 </div>
               )}
 
+              {instructionPage === 3 && (
+                <div className="space-y-6">
+                  <div className="text-center mb-4">
+                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 text-lg px-4 py-2">
+                      🎯 About the Practice Trial
+                    </Badge>
+                  </div>
+                  
+                  <div className="space-y-4 text-lg">
+                    <p>
+                      Before starting the actual test, you'll complete a <strong>practice trial with 8 circles</strong> to familiarize yourself with the task.
+                    </p>
+                    
+                    <div className="bg-muted/50 p-6 rounded-lg space-y-3">
+                      <p className="font-semibold mb-3">During practice, you will see:</p>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">🎯</span>
+                        <p className="text-base">
+                          The <strong className="text-blue-600">current target circle will pulse</strong> to show which one to click next
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl text-green-600">✓</span>
+                        <p className="text-base">
+                          <strong className="text-green-600">Correct clicks</strong> turn the circle green and draw a line to it
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl text-red-600">✗</span>
+                        <p className="text-base">
+                          <strong className="text-red-600">Wrong clicks</strong> increase your error count but don't stop the test
+                        </p>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl">⏱</span>
+                        <p className="text-base">
+                          Your <strong>time is tracked</strong> from first click to last circle
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-primary/10 p-4 rounded-lg border-l-4 border-primary">
+                      <p className="text-base font-semibold">
+                        💡 Pro Tip: Use the practice to plan your eye movements and mouse path. Look ahead to find the next circle while clicking!
+                      </p>
+                    </div>
+
+                    <p className="text-center text-muted-foreground text-base mt-4">
+                      After completing practice, you'll move on to the actual test with 25 circles.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               <div className="flex justify-between mt-8 pt-6 border-t">
                 <Button
                   onClick={handleInstructionPrev}
@@ -388,7 +481,7 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
                 </Button>
                 
                 <div className="flex gap-2">
-                  {[0, 1, 2].map(page => (
+                  {[0, 1, 2, 3].map(page => (
                     <div
                       key={page}
                       className={`h-2 w-2 rounded-full transition-colors ${
@@ -399,7 +492,7 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
                 </div>
 
                 <Button onClick={handleInstructionNext}>
-                  {instructionPage === 2 ? 'Start Practice' : 'Next'}
+                  {instructionPage === 3 ? 'Start Practice' : 'Next'}
                 </Button>
               </div>
             </motion.div>

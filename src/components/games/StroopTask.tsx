@@ -221,7 +221,7 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
         <div className="p-6 border-b border-border/50 backdrop-blur-sm bg-card/50 flex items-center justify-between">
           <h2 className="text-2xl font-bold text-yellow-500">
-            Instructions {instructionPage} out of 3
+            Instructions {instructionPage} of 4
           </h2>
           <Button variant="ghost" size="icon" onClick={onExit}>
             <X size={24} />
@@ -302,6 +302,53 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
                   </p>
                 </motion.div>
               )}
+
+              {instructionPage === 4 && (
+                <motion.div
+                  key="page4"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center mb-4">
+                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 text-lg px-4 py-2">
+                      🎯 About the Practice Trial
+                    </Badge>
+                  </div>
+                  <p className="text-lg leading-relaxed">
+                    During the <strong>practice trial</strong>, you will see:
+                  </p>
+                  <div className="bg-muted/50 p-6 rounded-lg space-y-3">
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">✓</span>
+                      <p className="text-base">
+                        A <strong className="text-green-600">green checkmark</strong> appears when you respond correctly
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl text-red-600">✗</span>
+                      <p className="text-base">
+                        A <strong className="text-red-600">red X</strong> appears when you respond incorrectly
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <span className="text-2xl">🔑</span>
+                      <p className="text-base">
+                        The card border changes color to show your response feedback
+                      </p>
+                    </div>
+                  </div>
+                  <p className="text-lg leading-relaxed">
+                    This feedback will help you understand the task before the actual test begins.
+                  </p>
+                  <div className="bg-primary/10 p-4 rounded-lg border-l-4 border-primary">
+                    <p className="text-base font-semibold">
+                      👍 Pro Tip: Use the practice to get comfortable with the key positions (R, G, B, Y) so you can respond quickly!
+                    </p>
+                  </div>
+                </motion.div>
+              )}
             </AnimatePresence>
 
             <div className="flex justify-between mt-12">
@@ -316,7 +363,7 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
                 </Button>
               )}
               <div className="flex-1" />
-              {instructionPage < 3 ? (
+              {instructionPage < 4 ? (
                 <Button
                   size="lg"
                   onClick={() => setInstructionPage(p => p + 1)}

@@ -11,13 +11,22 @@ export const GAMES: GameConfig[] = [
     controls: ['R - Red', 'G - Green', 'B - Blue', 'Y - Yellow']
   },
   {
-    id: 'digit-span',
-    name: 'Digit Span Test',
+    id: 'digit-span-forward',
+    name: 'Forward Digit Span',
     category: 'memory',
-    description: 'Assess short-term memory capacity with forward and backward recall',
+    description: 'Assess short-term memory capacity by recalling digits in the same order',
     icon: 'Brain',
-    instructions: 'Numbers will appear one at a time. First, you will recall sequences in FORWARD order. After failing twice, you will switch to BACKWARD order. The sequence length increases with each success.',
-    controls: ['Number keys 0-9', 'Enter to submit']
+    instructions: 'Numbers will appear one at a time. Recall the sequence in FORWARD order (same order shown). The sequence length increases with each success.',
+    controls: ['Click number buttons', 'Submit button to confirm']
+  },
+  {
+    id: 'digit-span-backward',
+    name: 'Backward Digit Span',
+    category: 'memory',
+    description: 'Assess working memory capacity by recalling digits in reverse order',
+    icon: 'Brain',
+    instructions: 'Numbers will appear one at a time. Recall the sequence in BACKWARD order (reverse of what was shown). The sequence length increases with each success.',
+    controls: ['Click number buttons', 'Submit button to confirm']
   },
   {
     id: 'trail-making',
