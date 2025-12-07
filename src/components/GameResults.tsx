@@ -34,10 +34,10 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
   const badge = getPerformanceBadge(summary.accuracy)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-3 sm:p-4 md:p-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
       <motion.div 
-        className="absolute top-4 right-4"
+        className="absolute top-2 right-2 sm:top-3 sm:right-3 md:top-4 md:right-4 z-20"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
@@ -47,28 +47,30 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5, type: "spring" }}
-        className="relative z-10"
+        className="relative z-10 w-full max-w-[95%] sm:max-w-lg md:max-w-xl lg:max-w-2xl"
       >
-        <Card className="max-w-lg w-full shadow-xl border-2">
-          <CardHeader className="text-center">
+        <Card className="w-full shadow-lg sm:shadow-xl border border-border sm:border-2">
+          <CardHeader className="text-center p-4 sm:p-5 md:p-6">
             <motion.div 
-              className="mx-auto w-20 h-20 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 flex items-center justify-center mb-4 shadow-lg"
+              className="mx-auto w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 flex items-center justify-center mb-3 sm:mb-4 shadow-lg"
               initial={{ scale: 0, rotate: -180 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{ duration: 0.6, type: "spring", delay: 0.2 }}
             >
-              <CheckCircle size={40} weight="fill" className="text-white" />
+              <CheckCircle size={28} className="sm:hidden text-white" weight="fill" />
+              <CheckCircle size={32} className="hidden sm:block md:hidden text-white" weight="fill" />
+              <CheckCircle size={40} className="hidden md:block text-white" weight="fill" />
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <CardTitle className="text-3xl mb-2">Task Complete!</CardTitle>
-              <CardDescription className="text-base">{gameName}</CardDescription>
+              <CardTitle className="text-2xl sm:text-3xl mb-1.5 sm:mb-2">Task Complete!</CardTitle>
+              <CardDescription className="text-sm sm:text-base">{gameName}</CardDescription>
             </motion.div>
           </CardHeader>
-          <CardContent className="flex flex-col gap-6">
+          <CardContent className="flex flex-col gap-4 sm:gap-5 md:gap-6 p-4 sm:p-5 md:p-6">
             <motion.div 
               className="flex justify-center"
               initial={{ opacity: 0, y: 10 }}

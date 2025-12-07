@@ -6,13 +6,28 @@ import { GAMES } from '@/lib/games'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive, Trash, Warning } from '@phosphor-icons/react'
+import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive, Trash, Warning, Eye, CalendarBlank, Clock, CheckCircle, XCircle } from '@phosphor-icons/react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion } from 'framer-motion'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { 
   downloadCSV, 
   downloadPDF, 
@@ -66,6 +81,8 @@ export function AdminDashboard() {
   const [selectedGame, setSelectedGame] = useState<string>('all')
   const [showResetDialog, setShowResetDialog] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [selectedStudentDetails, setSelectedStudentDetails] = useState<User | null>(null)
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false)
 
   // Fetch all data on mount
   useEffect(() => {
@@ -209,6 +226,25 @@ export function AdminDashboard() {
       day: 'numeric',
       year: 'numeric'
     })
+  }
+
+  const formatDateTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const handleViewStudentDetails = (student: User) => {
+    setSelectedStudentDetails(student)
+    setShowDetailsDialog(true)
+  }
+
+  const getStudentGameResults = (studentId: string) => {
+    return (gameResults || []).filter(r => r.userId === studentId)
   }
 
   const handleExport = (type: 'csv' | 'pdf' | 'student-csv' | 'game-csv') => {
@@ -474,34 +510,56 @@ export function AdminDashboard() {
                             </div>
                             
                             {stat.gamesPlayed > 0 ? (
-                              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Avg Score</p>
-                                  <p className="text-lg font-bold text-primary">{stat.avgScore.toFixed(0)}</p>
+                              <>
+                                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Avg Score</p>
+                                    <p className="text-lg font-bold text-primary">{stat.avgScore.toFixed(0)}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Accuracy</p>
+                                    <p className="text-lg font-bold text-green-600">{stat.avgAccuracy.toFixed(1)}%</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Error Rate</p>
+                                    <p className="text-lg font-bold text-destructive">{stat.avgErrorRate.toFixed(1)}%</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Reaction Time</p>
+                                    <p className="text-lg font-bold text-blue-600">
+                                      {stat.avgReactionTime > 0 ? `${stat.avgReactionTime.toFixed(0)}ms` : 'N/A'}
+                                    </p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs text-muted-foreground mb-1">Last Played</p>
+                                    <p className="text-sm font-semibold">
+                                      {stat.lastPlayed ? formatDate(stat.lastPlayed) : 'Never'}
+                                    </p>
+                                  </div>
                                 </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Accuracy</p>
-                                  <p className="text-lg font-bold text-green-600">{stat.avgAccuracy.toFixed(1)}%</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Error Rate</p>
-                                  <p className="text-lg font-bold text-destructive">{stat.avgErrorRate.toFixed(1)}%</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Reaction Time</p>
-                                  <p className="text-lg font-bold text-blue-600">
-                                    {stat.avgReactionTime > 0 ? `${stat.avgReactionTime.toFixed(0)}ms` : 'N/A'}
-                                  </p>
-                                </div>
-                                <div>
-                                  <p className="text-xs text-muted-foreground mb-1">Last Played</p>
-                                  <p className="text-sm font-semibold">
-                                    {stat.lastPlayed ? formatDate(stat.lastPlayed) : 'Never'}
-                                  </p>
-                                </div>
-                              </div>
+                                <Button
+                                  onClick={() => handleViewStudentDetails(stat.student)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="mt-3 gap-2 w-full sm:w-auto"
+                                >
+                                  <Eye size={16} />
+                                  View All Details
+                                </Button>
+                              </>
                             ) : (
-                              <p className="text-sm text-muted-foreground italic">No games played yet</p>
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm text-muted-foreground italic">No games played yet</p>
+                                <Button
+                                  onClick={() => handleViewStudentDetails(stat.student)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2"
+                                >
+                                  <Eye size={16} />
+                                  View Details
+                                </Button>
+                              </div>
                             )}
                           </motion.div>
                         ))
@@ -898,6 +956,290 @@ export function AdminDashboard() {
           </motion.div>
         </main>
       </div>
+
+      {/* Student Details Dialog */}
+      <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-2xl">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
+                <UserIcon size={24} weight="bold" className="text-primary-foreground" />
+              </div>
+              <div>
+                <div>{selectedStudentDetails?.email}</div>
+                <DialogDescription className="mt-1">
+                  Complete performance overview and game history
+                </DialogDescription>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedStudentDetails && (
+            <div className="space-y-6 mt-4">
+              {/* Student Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <UserIcon size={20} className="text-primary" />
+                    Student Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <CalendarBlank size={24} className="text-primary" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Registration Date</p>
+                        <p className="font-semibold">{formatDate(selectedStudentDetails.createdAt)}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <Trophy size={24} className="text-blue-600" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Total Games</p>
+                        <p className="font-semibold">{getStudentGameResults(selectedStudentDetails.id).length}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                      <Clock size={24} className="text-green-600" />
+                      <div>
+                        <p className="text-xs text-muted-foreground">Last Activity</p>
+                        <p className="font-semibold">
+                          {getStudentGameResults(selectedStudentDetails.id).length > 0
+                            ? formatDate(Math.max(...getStudentGameResults(selectedStudentDetails.id).map(r => r.timestamp)))
+                            : 'No activity yet'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Performance Statistics */}
+              {(() => {
+                const studentResults = getStudentGameResults(selectedStudentDetails.id)
+                if (studentResults.length === 0) {
+                  return (
+                    <Card>
+                      <CardContent className="py-12 text-center text-muted-foreground">
+                        <Trophy size={48} className="mx-auto mb-4 opacity-20" />
+                        <p>No games completed yet</p>
+                      </CardContent>
+                    </Card>
+                  )
+                }
+
+                const avgScore = studentResults.reduce((sum, r) => sum + r.score, 0) / studentResults.length
+                const avgAccuracy = studentResults.reduce((sum, r) => sum + r.accuracy, 0) / studentResults.length
+                const reactionTimes = studentResults.filter(r => r.reactionTime).map(r => r.reactionTime!)
+                const avgRT = reactionTimes.length > 0 ? reactionTimes.reduce((sum, rt) => sum + rt, 0) / reactionTimes.length : 0
+                const totalErrors = studentResults.reduce((sum, r) => sum + (r.errorCount || 0), 0)
+
+                // Game-by-game breakdown
+                const gameBreakdown = GAMES.map(game => {
+                  const gameResults = studentResults.filter(r => r.gameId === game.id)
+                  if (gameResults.length === 0) return null
+
+                  const gameAvgScore = gameResults.reduce((sum, r) => sum + r.score, 0) / gameResults.length
+                  const gameAvgAccuracy = gameResults.reduce((sum, r) => sum + r.accuracy, 0) / gameResults.length
+                  const gameRT = gameResults.filter(r => r.reactionTime).map(r => r.reactionTime!)
+                  const gameAvgRT = gameRT.length > 0 ? gameRT.reduce((sum, rt) => sum + rt, 0) / gameRT.length : 0
+
+                  return {
+                    game,
+                    count: gameResults.length,
+                    avgScore: gameAvgScore,
+                    avgAccuracy: gameAvgAccuracy,
+                    avgRT: gameAvgRT,
+                    results: gameResults.sort((a, b) => b.timestamp - a.timestamp)
+                  }
+                }).filter(Boolean)
+
+                return (
+                  <>
+                    {/* Overall Stats Cards */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <Card className="border-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <Trophy size={16} className="text-primary" />
+                            Avg Score
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-3xl font-bold text-primary">{avgScore.toFixed(0)}</div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <Target size={16} className="text-green-600" />
+                            Avg Accuracy
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-3xl font-bold text-green-600">{avgAccuracy.toFixed(1)}%</div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <Clock size={16} className="text-blue-600" />
+                            Avg RT
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-3xl font-bold text-blue-600">
+                            {avgRT > 0 ? `${avgRT.toFixed(0)}ms` : 'N/A'}
+                          </div>
+                        </CardContent>
+                      </Card>
+
+                      <Card className="border-2">
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-sm font-medium flex items-center gap-2">
+                            <XCircle size={16} className="text-red-600" />
+                            Total Errors
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="text-3xl font-bold text-red-600">{totalErrors}</div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Game-by-Game Breakdown */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <ChartBar size={20} className="text-primary" />
+                          Performance by Game
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-6">
+                          {gameBreakdown.map((item, idx) => {
+                            if (!item) return null
+                            return (
+                              <div key={item.game.id} className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <h4 className="font-semibold text-lg">{item.game.name}</h4>
+                                    <p className="text-sm text-muted-foreground">{item.game.description}</p>
+                                  </div>
+                                  <Badge variant="outline">{item.count} plays</Badge>
+                                </div>
+                                
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div className="p-3 rounded-lg bg-primary/5">
+                                    <p className="text-xs text-muted-foreground mb-1">Avg Score</p>
+                                    <p className="text-xl font-bold text-primary">{item.avgScore.toFixed(0)}</p>
+                                  </div>
+                                  <div className="p-3 rounded-lg bg-green-600/5">
+                                    <p className="text-xs text-muted-foreground mb-1">Avg Accuracy</p>
+                                    <p className="text-xl font-bold text-green-600">{item.avgAccuracy.toFixed(1)}%</p>
+                                  </div>
+                                  <div className="p-3 rounded-lg bg-blue-600/5">
+                                    <p className="text-xs text-muted-foreground mb-1">Avg RT</p>
+                                    <p className="text-xl font-bold text-blue-600">
+                                      {item.avgRT > 0 ? `${item.avgRT.toFixed(0)}ms` : 'N/A'}
+                                    </p>
+                                  </div>
+                                </div>
+
+                                {idx < gameBreakdown.length - 1 && <Separator className="mt-6" />}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Complete Game History Table */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Database size={20} className="text-primary" />
+                          Complete Game History
+                        </CardTitle>
+                        <CardDescription>All {studentResults.length} game sessions</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="rounded-md border">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Date & Time</TableHead>
+                                <TableHead>Game</TableHead>
+                                <TableHead className="text-right">Score</TableHead>
+                                <TableHead className="text-right">Accuracy</TableHead>
+                                <TableHead className="text-right">RT</TableHead>
+                                <TableHead className="text-right">Errors</TableHead>
+                                <TableHead className="text-center">Status</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {studentResults
+                                .sort((a, b) => b.timestamp - a.timestamp)
+                                .map((result) => {
+                                  const game = GAMES.find(g => g.id === result.gameId)
+                                  return (
+                                    <TableRow key={result.id}>
+                                      <TableCell className="font-medium">
+                                        {formatDateTime(result.timestamp)}
+                                      </TableCell>
+                                      <TableCell>
+                                        <div>
+                                          <p className="font-semibold">{game?.name || 'Unknown'}</p>
+                                          <p className="text-xs text-muted-foreground">{game?.category}</p>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className="text-right font-bold text-primary">
+                                        {result.score.toFixed(0)}
+                                      </TableCell>
+                                      <TableCell className="text-right font-semibold text-green-600">
+                                        {result.accuracy.toFixed(1)}%
+                                      </TableCell>
+                                      <TableCell className="text-right text-blue-600">
+                                        {result.reactionTime ? `${result.reactionTime.toFixed(0)}ms` : 'N/A'}
+                                      </TableCell>
+                                      <TableCell className="text-right text-red-600">
+                                        {result.errorCount || 0}
+                                      </TableCell>
+                                      <TableCell className="text-center">
+                                        {result.accuracy >= 75 ? (
+                                          <Badge className="bg-green-600 hover:bg-green-700">
+                                            <CheckCircle size={14} className="mr-1" />
+                                            Good
+                                          </Badge>
+                                        ) : result.accuracy >= 50 ? (
+                                          <Badge className="bg-yellow-600 hover:bg-yellow-700">
+                                            Fair
+                                          </Badge>
+                                        ) : (
+                                          <Badge variant="destructive">
+                                            <XCircle size={14} className="mr-1" />
+                                            Poor
+                                          </Badge>
+                                        )}
+                                      </TableCell>
+                                    </TableRow>
+                                  )
+                                })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </>
+                )
+              })()}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={showResetDialog} onOpenChange={setShowResetDialog}>
         <AlertDialogContent>

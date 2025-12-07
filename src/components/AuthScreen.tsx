@@ -55,35 +55,38 @@ export function AuthScreen() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-3 sm:p-4 md:p-6 relative overflow-hidden">
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
       <motion.div 
-        className="absolute top-4 right-4"
+        className="absolute top-2 right-2 sm:top-4 sm:right-4 z-20"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
       >
         <ThemeToggle />
       </motion.div>
-      <div className="w-full max-w-md relative z-10">
+      <div className="w-full max-w-[95%] sm:max-w-md relative z-10">
         <motion.div 
-          className="flex flex-col items-center mb-8"
+          className="flex flex-col items-center mb-4 sm:mb-6 md:mb-8"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
         >
           <motion.div 
-            className="w-16 h-16 rounded-full bg-gradient-to-br from-primary via-blue-600 to-purple-600 flex items-center justify-center mb-4 shadow-lg"
+            className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary via-blue-600 to-purple-600 flex items-center justify-center mb-3 sm:mb-4 shadow-lg"
             whileHover={{ scale: 1.1, rotate: 5 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <Brain size={32} weight="bold" className="text-primary-foreground" />
+            <Brain size={24} className="sm:hidden text-primary-foreground" weight="bold" />
+            <Brain size={28} className="hidden sm:block md:hidden text-primary-foreground" weight="bold" />
+            <Brain size={32} className="hidden md:block text-primary-foreground" weight="bold" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-foreground tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight flex items-center gap-1.5 sm:gap-2">
             <span className="text-blue-600 dark:text-blue-400">10</span>XMindPlay
-            <Sparkle size={20} weight="fill" className="text-blue-600 dark:text-blue-400" />
+            <Sparkle size={16} className="sm:hidden text-blue-600 dark:text-blue-400" weight="fill" />
+            <Sparkle size={20} className="hidden sm:block text-blue-600 dark:text-blue-400" weight="fill" />
           </h1>
-          <p className="text-muted-foreground mt-2">Cognitive Training Platform</p>
+          <p className="text-sm sm:text-base text-muted-foreground mt-1.5 sm:mt-2">Cognitive Training Platform</p>
         </motion.div>
 
         <motion.div
@@ -91,15 +94,15 @@ export function AuthScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
         >
-          <Card className="shadow-xl border-2">
-            <CardHeader>
-              <CardTitle className="text-2xl">{isLogin ? 'Welcome Back' : 'Create Account'}</CardTitle>
-              <CardDescription>
+          <Card className="shadow-lg sm:shadow-xl border border-border sm:border-2">
+            <CardHeader className="space-y-1 sm:space-y-1.5 p-4 sm:p-6">
+              <CardTitle className="text-xl sm:text-2xl">{isLogin ? 'Welcome Back' : 'Create Account'}</CardTitle>
+              <CardDescription className="text-sm sm:text-base">
                 {isLogin ? 'Sign in to continue your training' : 'Start your cognitive training journey'}
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            <CardContent className="p-4 sm:p-6">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
                 {!isLogin && (
                   <>
                     <div className="flex flex-col gap-2">
@@ -193,13 +196,13 @@ export function AuthScreen() {
 
                 <Button 
                   type="submit" 
-                  className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-md transition-all" 
+                  className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-md transition-all text-sm sm:text-base h-9 sm:h-10" 
                   disabled={loading}
                 >
                   {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Sign Up'}
                 </Button>
 
-                <div className="text-center text-sm">
+                <div className="text-center text-xs sm:text-sm">
                   <button
                     type="button"
                     onClick={() => {
