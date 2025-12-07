@@ -2,10 +2,19 @@ import { useAuth } from '@/lib/auth-context'
 import { GAMES } from '@/lib/games'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Brain, Eye, TreeStructure, Lightning, ChartLine, SignOut, Sparkle, PlayCircle, Cube, Ear } from '@phosphor-icons/react'
+import { Brain, Eye, TreeStructure, Lightning, ChartLine, SignOut, Sparkle, PlayCircle, Cube, Ear, User, EnvelopeSimple, IdentificationCard, Calendar, CalendarCheck } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion } from 'framer-motion'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { useState } from 'react'
+import { Separator } from '@/components/ui/separator'
 
 const iconMap = {
   Brain,
@@ -23,6 +32,7 @@ interface DashboardProps {
 
 export function Dashboard({ onSelectGame, onViewResults }: DashboardProps) {
   const { user, logout } = useAuth()
+  const [showProfile, setShowProfile] = useState(false)
 
   const getIcon = (iconName: string) => {
     const Icon = iconMap[iconName as keyof typeof iconMap] || Brain
@@ -84,6 +94,11 @@ export function Dashboard({ onSelectGame, onViewResults }: DashboardProps) {
             transition={{ duration: 0.5 }}
           >
             <ThemeToggle />
+            <Button variant="outline" size="sm" onClick={() => setShowProfile(true)} className="gap-1.5 sm:gap-2 hover:bg-primary/10 transition-all h-8 sm:h-9 px-2 sm:px-3">
+              <User size={16} className="sm:hidden" weight="duotone" />
+              <User size={18} className="hidden sm:block" weight="duotone" />
+              <span className="hidden md:inline text-sm">Profile</span>
+            </Button>
             <Button variant="outline" size="sm" onClick={onViewResults} className="gap-1.5 sm:gap-2 hover:bg-primary/10 transition-all h-8 sm:h-9 px-2 sm:px-3">
               <ChartLine size={16} className="sm:hidden" weight="duotone" />
               <ChartLine size={18} className="hidden sm:block" weight="duotone" />
@@ -162,6 +177,106 @@ export function Dashboard({ onSelectGame, onViewResults }: DashboardProps) {
           })}
         </div>
       </main>
+
+      {/* Profile Dialog */}
+      <Dialog open={showProfile} onOpenChange={setShowProfile}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl flex items-center gap-2">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
+                <User size={24} weight="bold" className="text-primary-foreground" />
+              </div>
+              My Profile
+            </DialogTitle>
+            <DialogDescription>
+              Your account information and details
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 mt-4">
+            {/* Account Information */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                <IdentificationCard size={18} className="text-primary" />
+                ACCOUNT INFORMATION
+              </div>
+              <Separator />
+              
+              <div className="space-y-4">
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <EnvelopeSimple size={20} className="text-primary mt-0.5 flex-shrink-0" weight="duotone" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground mb-1">Email Address</p>
+                    <p className="font-semibold break-all">{user?.email}</p>
+                  </div>
+                </div>
+
+                {user?.name && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <User size={20} className="text-primary mt-0.5 flex-shrink-0" weight="duotone" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground mb-1">Full Name</p>
+                      <p className="font-semibold">{user.name}</p>
+                    </div>
+                  </div>
+                )}
+
+                {user?.rollNo && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <IdentificationCard size={20} className="text-primary mt-0.5 flex-shrink-0" weight="duotone" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground mb-1">Roll Number</p>
+                      <p className="font-semibold">{user.rollNo}</p>
+                    </div>
+                  </div>
+                )}
+
+                {user?.dob && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <Calendar size={20} className="text-primary mt-0.5 flex-shrink-0" weight="duotone" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground mb-1">Date of Birth</p>
+                      <p className="font-semibold">{user.dob}</p>
+                    </div>
+                  </div>
+                )}
+
+                {user?.consentDate && (
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                    <CalendarCheck size={20} className="text-primary mt-0.5 flex-shrink-0" weight="duotone" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs text-muted-foreground mb-1">Consent Given</p>
+                      <p className="font-semibold">{user.consentDate}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
+                  <CalendarCheck size={20} className="text-primary mt-0.5 flex-shrink-0" weight="duotone" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground mb-1">Member Since</p>
+                    <p className="font-semibold">
+                      {user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                      }) : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Account Type Badge */}
+            <div className="flex items-center justify-center pt-4 border-t">
+              <Badge variant="secondary" className="px-4 py-2">
+                <User size={16} weight="duotone" className="mr-2" />
+                Student Account
+              </Badge>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
