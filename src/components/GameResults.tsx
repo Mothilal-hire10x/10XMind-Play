@@ -92,6 +92,206 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
               </motion.div>
             )}
 
+            {/* Detailed Stroop Test Results */}
+            {gameName === 'Stroop Test' && summary.details && (
+              <motion.div
+                className="space-y-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+              >
+                <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 p-4 rounded-lg border border-blue-500/20">
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-3 text-center">Reaction Time Analysis</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50">
+                      <p className="text-xs text-muted-foreground mb-1">Congruent RT</p>
+                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        {summary.details.congruentRT}ms
+                      </p>
+                    </div>
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50">
+                      <p className="text-xs text-muted-foreground mb-1">Incongruent RT</p>
+                      <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                        {summary.details.incongruentRT}ms
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/5 p-4 rounded-lg border border-purple-500/20 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Stroop Interference Effect</p>
+                  <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                    {summary.details.stroopInterferenceEffect}ms
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    RT(Incongruent) - RT(Congruent)
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-br from-red-500/10 to-rose-500/5 p-4 rounded-lg border border-red-500/20">
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-3 text-center">Error Analysis</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Congruent</p>
+                      <p className="text-xl font-bold text-foreground">{summary.details.congruentErrors}</p>
+                    </div>
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Incongruent</p>
+                      <p className="text-xl font-bold text-foreground">{summary.details.incongruentErrors}</p>
+                    </div>
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Total</p>
+                      <p className="text-xl font-bold text-red-600 dark:text-red-400">{summary.details.totalErrors}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Detailed Trail Making Test Results */}
+            {gameName === 'Trail Making Test' && summary.details && (
+              <motion.div
+                className="space-y-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 p-4 rounded-lg border border-blue-500/20">
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2 text-center">TMT-A Results</h3>
+                    <div className="space-y-2">
+                      <div className="bg-card/50 p-3 rounded-lg border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-1">Time to Complete</p>
+                        <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                          {(summary.details.tmtATime / 1000).toFixed(2)}s
+                        </p>
+                      </div>
+                      <div className="bg-card/50 p-3 rounded-lg border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-1">Number of Errors</p>
+                        <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                          {summary.details.tmtAErrors}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/5 p-4 rounded-lg border border-purple-500/20">
+                    <h3 className="font-semibold text-sm text-muted-foreground mb-2 text-center">TMT-B Results</h3>
+                    <div className="space-y-2">
+                      <div className="bg-card/50 p-3 rounded-lg border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-1">Time to Complete</p>
+                        <p className="text-2xl font-bold text-purple-600 dark:text-purple-400">
+                          {(summary.details.tmtBTime / 1000).toFixed(2)}s
+                        </p>
+                      </div>
+                      <div className="bg-card/50 p-3 rounded-lg border border-border/50">
+                        <p className="text-xs text-muted-foreground mb-1">Number of Errors</p>
+                        <p className="text-xl font-bold text-red-600 dark:text-red-400">
+                          {summary.details.tmtBErrors}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 p-4 rounded-lg border border-green-500/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Difference Score</p>
+                    <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                      {(summary.details.differenceScore / 1000).toFixed(2)}s
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">TMT-B - TMT-A</p>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/5 p-4 rounded-lg border border-orange-500/20 text-center">
+                    <p className="text-xs text-muted-foreground mb-1">Rate Score</p>
+                    <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                      {summary.details.rateScore}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">TMT-A / TMT-B</p>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-red-500/10 to-rose-500/5 p-4 rounded-lg border border-red-500/20 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Total Errors (Both Parts)</p>
+                  <p className="text-3xl font-bold text-red-600 dark:text-red-400">
+                    {summary.details.totalErrors}
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Detailed Mental Rotation Test Results */}
+            {gameName === 'Mental Rotation Test' && summary.details && (
+              <motion.div
+                className="space-y-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 p-4 rounded-lg border border-blue-500/20">
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-3 text-center">Overall Performance</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Total Score</p>
+                      <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                        {summary.details.correctSelections}/{summary.details.maxScore}
+                      </p>
+                    </div>
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Total Questions</p>
+                      <p className="text-3xl font-bold text-foreground">
+                        {summary.details.totalQuestions}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 p-4 rounded-lg border border-green-500/20">
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-3 text-center">Selection Analysis</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Correct Selections</p>
+                      <p className="text-2xl font-bold text-green-600 dark:text-green-400">
+                        {summary.details.correctSelections}
+                      </p>
+                    </div>
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Incorrect Selections</p>
+                      <p className="text-2xl font-bold text-red-600 dark:text-red-400">
+                        {summary.details.incorrectSelections}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-red-500/10 to-rose-500/5 p-4 rounded-lg border border-red-500/20">
+                  <h3 className="font-semibold text-sm text-muted-foreground mb-3 text-center">Error Type Breakdown</h3>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Mirror Image Errors</p>
+                      <p className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                        {summary.details.mirrorErrors}
+                      </p>
+                    </div>
+                    <div className="bg-card/50 p-3 rounded-lg border border-border/50 text-center">
+                      <p className="text-xs text-muted-foreground mb-1">Different Figure Errors</p>
+                      <p className="text-2xl font-bold text-rose-600 dark:text-rose-400">
+                        {summary.details.differentFigureErrors}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/5 p-4 rounded-lg border border-purple-500/20 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Average Reaction Time</p>
+                  <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+                    {summary.details.avgReactionTime}ms
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <motion.div 
                 className="text-center p-4 rounded-xl bg-gradient-to-br from-primary/10 to-blue-500/5 border border-primary/20 hover:scale-105 transition-transform"

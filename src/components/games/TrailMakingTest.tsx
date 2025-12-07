@@ -19,12 +19,11 @@ interface Circle {
   isClicked: boolean
 }
 
-type GamePhase = 'instructions' | 'practice' | 'test'
+type GamePhase = 'instructions' | 'practice-a' | 'transition-a' | 'test-a' | 'transition-b' | 'practice-b' | 'test-b'
 
 export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>('instructions')
   const [instructionPage, setInstructionPage] = useState(0)
-  const [practiceComplete, setPracticeComplete] = useState(false)
   
   const [testPart, setTestPart] = useState<'A' | 'B'>('A')
   const [circles, setCircles] = useState<Circle[]>([])
@@ -32,8 +31,15 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
   const [errors, setErrors] = useState(0)
   const [startTime, setStartTime] = useState(0)
   const [completionTime, setCompletionTime] = useState(0)
-  const [testATime, setTestATime] = useState(0)
-  const [testAErrors, setTestAErrors] = useState(0)
+  
+  // TMT-A Results
+  const [tmtATime, setTmtATime] = useState(0)
+  const [tmtAErrors, setTmtAErrors] = useState(0)
+  
+  // TMT-B Results
+  const [tmtBTime, setTmtBTime] = useState(0)
+  const [tmtBErrors, setTmtBErrors] = useState(0)
+  
   const [isComplete, setIsComplete] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [results, setResults] = useState<TrialResult[]>([])
@@ -87,21 +93,27 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
     return newCircles
   }, [])
 
-  const startTest = useCallback((isPractice: boolean = false) => {
-    const newCircles = generateCircles(testPart, isPractice)
+  const startTest = useCallback((isPractice: boolean = false, part: 'A' | 'B') => {
+    const newCircles = generateCircles(part, isPractice)
     setCircles(newCircles)
     setCurrentTarget(0)
     setErrors(0)
-    setStartTime(performance.now())
     setIsComplete(false)
     setElapsedTime(0)
-  }, [testPart, generateCircles])
+    // Don't start timer yet - it will start on first click
+    setStartTime(0)
+    setCompletionTime(0)
+  }, [generateCircles])
 
   useEffect(() => {
-    if (gamePhase === 'practice' || gamePhase === 'test') {
-      startTest(gamePhase === 'practice')
+    if (gamePhase === 'practice-a' || gamePhase === 'test-a') {
+      setTestPart('A')
+      startTest(gamePhase === 'practice-a', 'A')
+    } else if (gamePhase === 'practice-b' || gamePhase === 'test-b') {
+      setTestPart('B')
+      startTest(gamePhase === 'practice-b', 'B')
     }
-  }, [gamePhase, testPart])
+  }, [gamePhase, startTest])
 
   useEffect(() => {
     if (!isComplete && startTime > 0) {
@@ -115,6 +127,11 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
   const handleCircleClick = useCallback((circle: Circle) => {
     if (isComplete) return
 
+    // Start timer on first click (after practice)
+    if (startTime === 0 && currentTarget === 0) {
+      setStartTime(performance.now())
+    }
+
     if (circle.id === currentTarget) {
       // Correct click
       const newCircles = circles.map(c =>
@@ -126,7 +143,7 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
         stimulus: circle.label,
         response: circle.label,
         correct: true,
-        reactionTime: performance.now() - startTime,
+        reactionTime: startTime > 0 ? performance.now() - startTime : 0,
         trialType: `TMT-${testPart}`
       }
       setResults(prev => [...prev, trialResult])
@@ -137,35 +154,48 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
         setCompletionTime(completedTime)
         setIsComplete(true)
 
-        if (gamePhase === 'practice') {
-          // Practice complete, show transition screen
-          setPracticeComplete(true)
-        } else if (testPart === 'A') {
-          // Save TMT-A results and start TMT-B
-          setTestATime(completedTime)
-          setTestAErrors(errors)
+        if (gamePhase === 'practice-a') {
+          // Practice A complete, show transition to test A
           setTimeout(() => {
-            setTestPart('B')
-          }, 2000)
-        } else {
-          // Both tests complete
+            setGamePhase('transition-a')
+          }, 1500)
+        } else if (gamePhase === 'test-a') {
+          // Save TMT-A results and show transition to Part B
+          setTmtATime(completedTime)
+          setTmtAErrors(errors)
           setTimeout(() => {
-            const timeDifference = completedTime - testATime
-            const totalErrors = testAErrors + errors
-            const errorRate = (totalErrors / (circles.length * 2)) * 100
+            setGamePhase('transition-b')
+          }, 1500)
+        } else if (gamePhase === 'practice-b') {
+          // Practice B complete, show transition to test B
+          setTimeout(() => {
+            setGamePhase('test-b')
+          }, 1500)
+        } else if (gamePhase === 'test-b') {
+          // Both tests complete - calculate all metrics
+          setTmtBTime(completedTime)
+          setTmtBErrors(errors)
+          
+          setTimeout(() => {
+            // Calculate metrics
+            const differenceScore = completedTime - tmtATime // TMTB - TMTA
+            const rateScore = tmtATime / completedTime // TMTA / TMTB
+            const totalErrors = tmtAErrors + errors
             
             onComplete(results, {
-              score: Math.round((testATime + completedTime) / 2),
-              accuracy: ((circles.length * 2 - totalErrors) / (circles.length * 2)) * 100,
-              reactionTime: (testATime + completedTime) / 2,
+              score: Math.round(tmtATime + completedTime), // Total time for both parts
+              accuracy: 100 - ((totalErrors / (25 * 2)) * 100), // Based on 25 circles each
+              reactionTime: (tmtATime + completedTime) / 2,
               errorCount: totalErrors,
-              errorRate,
+              errorRate: (totalErrors / (25 * 2)) * 100,
               details: {
-                tmtATime: testATime,
-                tmtBTime: completedTime,
-                tmtAErrors: testAErrors,
+                tmtATime: Math.round(tmtATime),
+                tmtBTime: Math.round(completedTime),
+                tmtAErrors: tmtAErrors,
                 tmtBErrors: errors,
-                timeDifference
+                totalErrors: totalErrors,
+                differenceScore: Math.round(differenceScore),
+                rateScore: rateScore.toFixed(3)
               }
             })
           }, 2000)
@@ -174,25 +204,25 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
         setCurrentTarget(prev => prev + 1)
       }
     } else {
-      // Wrong click
+      // Wrong click - count as error
       setErrors(prev => prev + 1)
       
       const trialResult: TrialResult = {
         stimulus: circles[currentTarget].label,
         response: circle.label,
         correct: false,
-        reactionTime: performance.now() - startTime,
+        reactionTime: startTime > 0 ? performance.now() - startTime : 0,
         trialType: `TMT-${testPart}`
       }
       setResults(prev => [...prev, trialResult])
     }
-  }, [circles, currentTarget, isComplete, testPart, startTime, errors, testATime, gamePhase, onComplete, results])
+  }, [circles, currentTarget, isComplete, testPart, startTime, errors, tmtATime, gamePhase, onComplete, results])
 
   const handleInstructionNext = () => {
     if (instructionPage < 3) {
       setInstructionPage(prev => prev + 1)
     } else {
-      setGamePhase('practice')
+      setGamePhase('practice-a')
     }
   }
 
@@ -202,16 +232,56 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
     }
   }
 
-  // Practice complete transition screen
-  if (practiceComplete) {
+  // Transition screen after Practice A
+  if (gamePhase === 'transition-a') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
         <Card 
-          className="max-w-2xl w-full p-8 shadow-2xl cursor-pointer hover:shadow-3xl transition-all border-2 border-green-500/30 bg-green-500/5"
+          className="max-w-2xl w-full p-8 shadow-2xl cursor-pointer hover:shadow-3xl transition-all border-2 border-blue-500/30 bg-blue-500/5"
           onClick={() => {
-            setPracticeComplete(false)
-            setGamePhase('test')
-            setTestPart('A')
+            setGamePhase('test-a')
+          }}
+        >
+          <div className="text-center space-y-6">
+            <div className="flex justify-center">
+              <div className="p-4 bg-blue-100 dark:bg-blue-900 rounded-full">
+                <Check size={64} weight="bold" className="text-blue-600 dark:text-blue-400" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-3xl font-bold">Practice Part A Completed!</h2>
+              <p className="text-xl text-muted-foreground">
+                Now the actual TMT-A test begins.
+              </p>
+            </div>
+            <div className="bg-muted/50 p-6 rounded-lg space-y-2">
+              <p className="text-lg font-semibold">
+                Your training trial is complete. The real test begins now. Focus!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                You'll connect 25 numbered circles (1 → 2 → 3... → 25)
+              </p>
+              <p className="text-sm text-blue-600 dark:text-blue-400 font-semibold mt-3">
+                ⏱️ Timer starts on your first click!
+              </p>
+            </div>
+            <p className="text-primary font-semibold animate-pulse">
+              Click anywhere to start TMT-A
+            </p>
+          </div>
+        </Card>
+      </div>
+    )
+  }
+
+  // Transition screen between TMT-A and TMT-B
+  if (gamePhase === 'transition-b') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+        <Card 
+          className="max-w-2xl w-full p-8 shadow-2xl cursor-pointer hover:shadow-3xl transition-all border-2 border-purple-500/30 bg-purple-500/5"
+          onClick={() => {
+            setGamePhase('practice-b')
           }}
         >
           <div className="text-center space-y-6">
@@ -221,21 +291,28 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
               </div>
             </div>
             <div className="space-y-2">
-              <h2 className="text-3xl font-bold">Trial Session Completed!</h2>
-              <p className="text-xl text-muted-foreground">
-                You are now entering the actual game.
-              </p>
+              <h2 className="text-3xl font-bold">TMT-A Complete!</h2>
+              <div className="text-xl text-muted-foreground space-y-1">
+                <p>Time: <span className="font-bold text-blue-600">{(tmtATime / 1000).toFixed(2)}s</span></p>
+                <p>Errors: <span className="font-bold text-red-600">{tmtAErrors}</span></p>
+              </div>
             </div>
-            <div className="bg-muted/50 p-6 rounded-lg space-y-2">
+            <div className="bg-purple-50 dark:bg-purple-950/30 p-6 rounded-lg space-y-3 border border-purple-300 dark:border-purple-700">
+              <h3 className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                Now TMT-B will start!
+              </h3>
               <p className="text-lg font-semibold">
-                Your training trial is completed. The real test begins now. Focus!
+                In Part B, you'll <strong>alternate between numbers and letters</strong>
               </p>
-              <p className="text-sm text-muted-foreground">
-                You'll complete Part A (25 numbered circles) and then Part B (alternating numbers and letters).
+              <p className="text-base text-muted-foreground">
+                Pattern: 1 → A → 2 → B → 3 → C → 4 → D...
+              </p>
+              <p className="text-sm text-muted-foreground mt-3">
+                First, you'll do a practice trial with 8 items to get familiar with Part B.
               </p>
             </div>
             <p className="text-primary font-semibold animate-pulse">
-              Click anywhere to continue
+              Click anywhere to start Practice Part B
             </p>
           </div>
         </Card>
@@ -506,13 +583,13 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
       <div className="p-6 border-b border-border/50 backdrop-blur-sm bg-card/50 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {gamePhase === 'practice' && (
+          {(gamePhase === 'practice-a' || gamePhase === 'practice-b') && (
             <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 gap-2 px-4 py-2">
               <Lightning size={20} weight="fill" />
-              <span className="text-lg font-bold">Practice Mode</span>
+              <span className="text-lg font-bold">Practice Mode - Part {testPart}</span>
             </Badge>
           )}
-          {gamePhase === 'test' && (
+          {(gamePhase === 'test-a' || gamePhase === 'test-b') && (
             <Badge variant="outline" className="gap-2 px-4 py-2">
               <Lightning size={20} weight="fill" className="text-primary" />
               <div className="flex flex-col items-start">
@@ -526,7 +603,7 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
             <div className="flex flex-col items-start">
               <span className="text-xs text-muted-foreground">Time</span>
               <span className="text-xl font-bold text-foreground">
-                {(elapsedTime / 1000).toFixed(1)}s
+                {startTime === 0 ? '0.0s' : (elapsedTime / 1000).toFixed(1) + 's'}
               </span>
             </div>
           </Badge>
@@ -563,16 +640,13 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
               >
                 <div className="text-center">
                   <div className="text-6xl mb-4">✓</div>
-                  {gamePhase === 'practice' ? (
+                  {(gamePhase === 'practice-a' || gamePhase === 'practice-b') ? (
                     <>
                       <div className="text-2xl font-bold text-success">
-                        Practice Complete!
+                        Practice Part {testPart} Complete!
                       </div>
                       <div className="text-lg text-muted-foreground mt-2">
-                        Time: {(completionTime / 1000).toFixed(2)}s
-                      </div>
-                      <div className="text-sm text-muted-foreground mt-4">
-                        Starting TMT-A...
+                        Time: {(completionTime / 1000).toFixed(2)}s | Errors: {errors}
                       </div>
                     </>
                   ) : (
@@ -581,11 +655,16 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
                         TMT-{testPart} Complete!
                       </div>
                       <div className="text-lg text-muted-foreground mt-2">
-                        Time: {(completionTime / 1000).toFixed(2)}s
+                        Time: {(completionTime / 1000).toFixed(2)}s | Errors: {errors}
                       </div>
-                      {testPart === 'A' && (
+                      {gamePhase === 'test-a' && (
                         <div className="text-sm text-muted-foreground mt-4">
-                          Starting TMT-B...
+                          Transitioning to Part B...
+                        </div>
+                      )}
+                      {gamePhase === 'test-b' && (
+                        <div className="text-sm text-muted-foreground mt-4">
+                          Test complete! Calculating results...
                         </div>
                       )}
                     </>
@@ -596,12 +675,15 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
           </AnimatePresence>
 
           <div className="absolute top-4 left-4 text-sm text-muted-foreground">
-            {gamePhase === 'practice'
-              ? 'Practice: Connect the numbers in order (1 → 2 → 3 → ...)'
-              : testPart === 'A' 
-                ? 'Connect the numbers in order: 1 → 2 → 3 → ...'
-                : 'Alternate numbers and letters: 1 → A → 2 → B → ...'
+            {(gamePhase === 'practice-a' || gamePhase === 'test-a')
+              ? 'Connect the numbers in order: 1 → 2 → 3 → ...'
+              : 'Alternate numbers and letters: 1 → A → 2 → B → ...'
             }
+            {startTime === 0 && (
+              <div className="text-primary font-semibold mt-1">
+                ⏱️ Timer starts on your first click!
+              </div>
+            )}
           </div>
 
           {circles.map((circle, index) => {

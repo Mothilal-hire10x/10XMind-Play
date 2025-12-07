@@ -23,6 +23,10 @@ export function generateCSV(data: ExportData): string {
   const headers = [
     'Date',
     'Student Email',
+    'Student Name',
+    'Roll Number',
+    'Date of Birth',
+    'Consent Date',
     'Game Name',
     'Score',
     'Accuracy (%)',
@@ -38,6 +42,10 @@ export function generateCSV(data: ExportData): string {
     return [
       new Date(result.timestamp).toLocaleString(),
       studentEmail,
+      student?.name || 'N/A',
+      student?.rollNo || 'N/A',
+      student?.dob || 'N/A',
+      student?.consentDate || 'N/A',
       game?.name || 'Unknown',
       result.score.toFixed(2),
       result.accuracy.toFixed(2),
@@ -161,6 +169,22 @@ export function generatePDF(data: ExportData): jsPDF {
       doc.setFontSize(10)
       doc.text(`Email: ${student.email}`, margin + 5, yPos)
       yPos += 6
+      if (student.name) {
+        doc.text(`Name: ${student.name}`, margin + 5, yPos)
+        yPos += 6
+      }
+      if (student.rollNo) {
+        doc.text(`Roll Number: ${student.rollNo}`, margin + 5, yPos)
+        yPos += 6
+      }
+      if (student.dob) {
+        doc.text(`Date of Birth: ${student.dob}`, margin + 5, yPos)
+        yPos += 6
+      }
+      if (student.consentDate) {
+        doc.text(`Consent Date: ${student.consentDate}`, margin + 5, yPos)
+        yPos += 6
+      }
       doc.text(`Member Since: ${new Date(student.createdAt).toLocaleDateString()}`, margin + 5, yPos)
       yPos += 6
       doc.text(`Total Games Played: ${filteredResults.length}`, margin + 5, yPos)

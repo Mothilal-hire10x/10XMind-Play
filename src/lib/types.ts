@@ -2,6 +2,10 @@ export interface User {
   id: string
   email: string
   role: 'student' | 'admin'
+  rollNo?: string
+  name?: string
+  dob?: string
+  consentDate?: string
   createdAt: number
 }
 

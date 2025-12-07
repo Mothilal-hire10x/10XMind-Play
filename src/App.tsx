@@ -6,19 +6,14 @@ import { GameResult, TrialResult, GameSummary } from '@/lib/types'
 import { AuthScreen } from '@/components/AuthScreen'
 import { Dashboard } from '@/components/Dashboard'
 import { AdminDashboard } from '@/components/AdminDashboard'
+import { StudentOnboarding } from '@/components/StudentOnboarding'
 import { GameInstructions } from '@/components/GameInstructions'
 import { GameResults } from '@/components/GameResults'
 import { ResultsDashboard } from '@/components/ResultsDashboard'
 import { StroopTask } from '@/components/games/StroopTask'
-import { FlankerTask } from '@/components/games/FlankerTask'
-import { SimonTask } from '@/components/games/SimonTask'
 import { DigitSpanTask } from '@/components/games/DigitSpanTask'
 import { DigitSpanForward } from '@/components/games/DigitSpanForward'
 import { DigitSpanBackward } from '@/components/games/DigitSpanBackward'
-import { CorsiBlockTask } from '@/components/games/CorsiBlockTask'
-import { TowerOfHanoi } from '@/components/games/TowerOfHanoi'
-import { SART } from '@/components/games/SART'
-import { NBackTask } from '@/components/games/NBackTask'
 import { TrailMakingTest } from '@/components/games/TrailMakingTest'
 import { MentalRotationTest } from '@/components/games/MentalRotationTest'
 import { DichoticListeningTest } from '@/components/games/DichoticListeningTest'
@@ -102,24 +97,12 @@ function AppContent() {
     switch (selectedGameId) {
       case 'stroop':
         return <StroopTask {...gameProps} />
-      case 'flanker':
-        return <FlankerTask {...gameProps} />
-      case 'simon':
-        return <SimonTask {...gameProps} />
       case 'digit-span-forward':
         return <DigitSpanForward {...gameProps} />
       case 'digit-span-backward':
         return <DigitSpanBackward {...gameProps} />
       case 'digit-span':
         return <DigitSpanTask {...gameProps} />
-      case 'corsi':
-        return <CorsiBlockTask {...gameProps} />
-      case 'tower-hanoi':
-        return <TowerOfHanoi {...gameProps} />
-      case 'sart':
-        return <SART {...gameProps} />
-      case 'nback':
-        return <NBackTask {...gameProps} />
       case 'trail-making':
         return <TrailMakingTest {...gameProps} />
       case 'mental-rotation':
@@ -134,7 +117,7 @@ function AppContent() {
   return (
     <>
       {screen === 'dashboard' && (
-        <Dashboard onSelectGame={handleSelectGame} onViewResults={handleViewResults} />
+        <StudentOnboarding onSelectGame={handleSelectGame} onViewResults={handleViewResults} />
       )}
       {screen === 'instructions' && selectedGameId && (
         <GameInstructions
