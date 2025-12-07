@@ -19,6 +19,10 @@ export async function runMigrations(skipClose = false) {
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'student',
+      roll_no TEXT,
+      name TEXT,
+      dob TEXT,
+      consent_date TEXT,
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL
     )
@@ -101,6 +105,21 @@ export async function runMigrations(skipClose = false) {
     // Column already exists or error - that's okay
     if (!err.message.includes('duplicate column')) {
       console.log('ℹ️ error_rate column likely already exists');
+    }
+  }
+
+  // Add new user fields if they don't exist
+  const newUserColumns = ['roll_no', 'name', 'dob', 'consent_date'];
+  for (const column of newUserColumns) {
+    try {
+      await db.run(`
+        ALTER TABLE users ADD COLUMN ${column} TEXT
+      `);
+      console.log(`✅ Added ${column} column to users table`);
+    } catch (err: any) {
+      if (!err.message.includes('duplicate column')) {
+        console.log(`ℹ️ ${column} column likely already exists`);
+      }
     }
   }
 

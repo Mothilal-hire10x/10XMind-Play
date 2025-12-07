@@ -5,8 +5,9 @@ import { authAPI, getToken } from '@/lib/api-client'
 interface AuthContextType {
   user: User | null
   login: (email: string, password: string) => Promise<boolean>
-  signup: (email: string, password: string) => Promise<boolean>
+  signup: (email: string, password: string, rollNo?: string, name?: string, dob?: string) => Promise<boolean>
   logout: () => void
+  refreshUser: () => Promise<void>
   isLoading: boolean
 }
 
@@ -36,9 +37,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth()
   }, [])
 
-  const signup = async (email: string, password: string): Promise<boolean> => {
+  const signup = async (email: string, password: string, rollNo?: string, name?: string, dob?: string): Promise<boolean> => {
     try {
-      const newUser = await authAPI.signup(email, password)
+      const newUser = await authAPI.signup(email, password, rollNo, name, dob)
       setUser(newUser)
       return true
     } catch (error) {
@@ -63,8 +64,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
   }
 
+  const refreshUser = async () => {
+    try {
+      const currentUser = await authAPI.getCurrentUser()
+      setUser(currentUser)
+    } catch (error) {
+      console.error('Failed to refresh user:', error)
+    }
+  }
+
   return (
-    <AuthContext.Provider value={{ user, login, signup, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, login, signup, logout, refreshUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   )

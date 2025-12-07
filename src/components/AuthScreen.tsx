@@ -13,6 +13,9 @@ export function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rollNo, setRollNo] = useState('')
+  const [name, setName] = useState('')
+  const [dob, setDob] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { login, signup } = useAuth()
@@ -34,7 +37,15 @@ export function AuthScreen() {
       return
     }
 
-    const success = isLogin ? await login(email, password) : await signup(email, password)
+    if (!isLogin && (!rollNo || !name || !dob)) {
+      setError('Please fill all required fields')
+      setLoading(false)
+      return
+    }
+
+    const success = isLogin 
+      ? await login(email, password) 
+      : await signup(email, password, rollNo, name, dob) // Don't pass consentDate during signup
 
     if (!success) {
       setError(isLogin ? 'Invalid email or password' : 'Email already registered')
@@ -89,6 +100,54 @@ export function AuthScreen() {
             </CardHeader>
             <CardContent>
               <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                {!isLogin && (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="rollNo">
+                        Roll Number *
+                      </Label>
+                      <Input
+                        id="rollNo"
+                        type="text"
+                        value={rollNo}
+                        onChange={(e) => setRollNo(e.target.value)}
+                        placeholder="Enter your roll number"
+                        className="transition-all focus:border-primary"
+                        required={!isLogin}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="name">
+                        Full Name *
+                      </Label>
+                      <Input
+                        id="name"
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Enter your full name"
+                        className="transition-all focus:border-primary"
+                        required={!isLogin}
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Label htmlFor="dob">
+                        Date of Birth *
+                      </Label>
+                      <Input
+                        id="dob"
+                        type="date"
+                        value={dob}
+                        onChange={(e) => setDob(e.target.value)}
+                        className="transition-all focus:border-primary"
+                        required={!isLogin}
+                      />
+                    </div>
+                  </>
+                )}
+
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="email" className="flex items-center gap-2">
                     <EnvelopeSimple size={16} weight="duotone" />

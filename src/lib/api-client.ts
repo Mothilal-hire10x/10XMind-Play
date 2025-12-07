@@ -43,10 +43,10 @@ async function apiRequest<T>(
 
 // Auth API
 export const authAPI = {
-  async signup(email: string, password: string) {
+  async signup(email: string, password: string, rollNo?: string, name?: string, dob?: string) {
     const data = await apiRequest<{ user: any; token: string }>('/auth/signup', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, rollNo, name, dob }),
     });
     setToken(data.token);
     return data.user;
@@ -71,6 +71,14 @@ export const authAPI = {
 
   async getCurrentUser() {
     const data = await apiRequest<{ user: any }>('/auth/me');
+    return data.user;
+  },
+
+  async updateConsent(consentDate: string) {
+    const data = await apiRequest<{ user: any }>('/auth/consent', {
+      method: 'PATCH',
+      body: JSON.stringify({ consentDate }),
+    });
     return data.user;
   },
 };

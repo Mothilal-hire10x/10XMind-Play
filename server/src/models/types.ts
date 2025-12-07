@@ -3,6 +3,10 @@ export interface User {
   email: string;
   password: string;
   role: 'admin' | 'student';
+  roll_no?: string;
+  name?: string;
+  dob?: string;
+  consent_date?: string;
   created_at: number;
   updated_at: number;
 }
@@ -11,6 +15,10 @@ export interface UserResponse {
   id: string;
   email: string;
   role: 'admin' | 'student';
+  rollNo?: string;
+  name?: string;
+  dob?: string;
+  consentDate?: string;
   createdAt: number;
 }
 

@@ -3,293 +3,386 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { X, Cube, Check, XCircle } from '@phosphor-icons/react'
+import { X, Cube, Check } from '@phosphor-icons/react'
 import { TrialResult, GameSummary } from '@/lib/types'
 import { motion, AnimatePresence } from 'framer-motion'
+import { Checkbox } from '@/components/ui/checkbox'
 
 interface MentalRotationTestProps {
   onComplete: (results: TrialResult[], summary: GameSummary) => void
   onExit: () => void
 }
 
-interface Shape {
-  type: string
-  rotation: number
-  isMirrored: boolean
-}
-
-interface Trial {
-  target: Shape
-  option1: Shape
-  option2: Shape
-  correctOption: 1 | 2
+interface Question {
+  target: string
+  targetRotation: number
+  options: Array<{
+    figure: string
+    rotation: number
+    isMirror: boolean
+    isDifferent: boolean
+    isCorrect: boolean
+  }>
+  correctIndices: number[]
 }
 
 type GamePhase = 'instructions' | 'practice' | 'test'
 
-const TOTAL_TRIALS = 15
-const PRACTICE_TRIALS = 2
+const TOTAL_QUESTIONS = 24
+const PRACTICE_QUESTIONS = 3
+const MAX_SCORE = 48 // 24 questions × 2 correct answers each
 
 export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>('instructions')
   const [instructionPage, setInstructionPage] = useState(0)
   const [practiceComplete, setPracticeComplete] = useState(false)
-  const [currentTrial, setCurrentTrial] = useState(0)
-  const [trialData, setTrialData] = useState<Trial | null>(null)
+  const [currentQuestion, setCurrentQuestion] = useState(0)
+  const [questionData, setQuestionData] = useState<Question | null>(null)
+  const [selectedOptions, setSelectedOptions] = useState<Set<number>>(new Set())
   const [startTime, setStartTime] = useState(0)
   const [results, setResults] = useState<TrialResult[]>([])
-  const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null)
-  const [errorTypes, setErrorTypes] = useState({ mirror: 0, rotation: 0 })
+  const [showFeedback, setShowFeedback] = useState(false)
+  const [questionResults, setQuestionResults] = useState<Array<{
+    correct: number
+    incorrect: number
+    mirrorErrors: number
+    differentFigureErrors: number
+  }>>([])
 
-  const generateTrial = useCallback((): Trial => {
-    // Use simpler 3D block figures with fewer, easier rotation angles
-    const figures = [
-      'figure1', 'figure2', 'figure3', 'figure4', 'figure5'
-    ]
-    // Simplified to only 4 rotation angles (90-degree increments)
-    const rotations = [0, 90, 180, 270]
-    
-    const figureType = figures[Math.floor(Math.random() * figures.length)]
+  const figures = [
+    'fig1', 'fig2', 'fig3', 'fig4', 'fig5', 'fig6', 'fig7', 'fig8',
+    'fig9', 'fig10', 'fig11', 'fig12', 'fig13', 'fig14', 'fig15', 'fig16'
+  ]
+
+  const rotations = [0, 45, 90, 135, 180, 225, 270, 315]
+
+  const generateQuestion = useCallback((): Question => {
+    const targetFigure = figures[Math.floor(Math.random() * figures.length)]
     const targetRotation = rotations[Math.floor(Math.random() * rotations.length)]
     
-    // For comparison options, we need different rotations
-    const option1Rotation = rotations[Math.floor(Math.random() * rotations.length)]
-    const option2Rotation = rotations[Math.floor(Math.random() * rotations.length)]
-    
-    // Randomly decide which option is correct (same figure) and which is different (mirrored)
-    const correctOption: 1 | 2 = Math.random() > 0.5 ? 1 : 2
-    
-    const target: Shape = {
-      type: figureType,
-      rotation: targetRotation,
-      isMirrored: false
+    // Get a different figure for the "different figure" option
+    let differentFigure = figures[Math.floor(Math.random() * figures.length)]
+    while (differentFigure === targetFigure) {
+      differentFigure = figures[Math.floor(Math.random() * figures.length)]
     }
-    
-    const option1: Shape = {
-      type: figureType,
-      rotation: option1Rotation,
-      isMirrored: correctOption === 2 // Mirror if this is the wrong option
+
+    // Create options array
+    const options = [
+      // 2 correct answers (rotated versions of target)
+      {
+        figure: targetFigure,
+        rotation: rotations[Math.floor(Math.random() * rotations.length)],
+        isMirror: false,
+        isDifferent: false,
+        isCorrect: true
+      },
+      {
+        figure: targetFigure,
+        rotation: rotations[Math.floor(Math.random() * rotations.length)],
+        isMirror: false,
+        isDifferent: false,
+        isCorrect: true
+      },
+      // 1 mirror image
+      {
+        figure: targetFigure,
+        rotation: rotations[Math.floor(Math.random() * rotations.length)],
+        isMirror: true,
+        isDifferent: false,
+        isCorrect: false
+      },
+      // 1 completely different figure
+      {
+        figure: differentFigure,
+        rotation: rotations[Math.floor(Math.random() * rotations.length)],
+        isMirror: false,
+        isDifferent: true,
+        isCorrect: false
+      }
+    ]
+
+    // Shuffle options
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]]
     }
-    
-    const option2: Shape = {
-      type: figureType,
-      rotation: option2Rotation,
-      isMirrored: correctOption === 1 // Mirror if this is the wrong option
+
+    // Find correct indices after shuffle
+    const correctIndices = options
+      .map((opt, idx) => opt.isCorrect ? idx : -1)
+      .filter(idx => idx !== -1)
+
+    return {
+      target: targetFigure,
+      targetRotation,
+      options,
+      correctIndices
     }
-    
-    return { target, option1, option2, correctOption }
   }, [])
 
-  const startNextTrial = useCallback(() => {
-    const maxTrials = gamePhase === 'practice' ? PRACTICE_TRIALS : TOTAL_TRIALS
+  const startNextQuestion = useCallback(() => {
+    const maxQuestions = gamePhase === 'practice' ? PRACTICE_QUESTIONS : TOTAL_QUESTIONS
     
-    if (currentTrial >= maxTrials) {
+    if (currentQuestion >= maxQuestions) {
       if (gamePhase === 'practice') {
         setPracticeComplete(true)
         return
       }
       
-      const totalCorrect = results.filter(r => r.correct).length
-      const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
-      const errorCount = TOTAL_TRIALS - totalCorrect
-      const errorRate = (errorCount / TOTAL_TRIALS) * 100
+      // Calculate final results
+      const totalCorrectSelections = questionResults.reduce((sum, q) => sum + q.correct, 0)
+      const totalIncorrectSelections = questionResults.reduce((sum, q) => sum + q.incorrect, 0)
+      const totalMirrorErrors = questionResults.reduce((sum, q) => sum + q.mirrorErrors, 0)
+      const totalDifferentFigureErrors = questionResults.reduce((sum, q) => sum + q.differentFigureErrors, 0)
       
+      const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
+
       onComplete(results, {
-        score: totalCorrect,
-        accuracy: (totalCorrect / TOTAL_TRIALS) * 100,
+        score: totalCorrectSelections,
+        accuracy: (totalCorrectSelections / MAX_SCORE) * 100,
         reactionTime: avgRT,
-        errorCount,
-        errorRate,
+        errorCount: totalIncorrectSelections,
+        errorRate: (totalIncorrectSelections / MAX_SCORE) * 100,
         details: {
-          errorTypes,
-          avgReactionTime: avgRT,
-          totalTrials: TOTAL_TRIALS,
-          rotationAngles: '0°, 90°, 180°, 270° (simplified)'
+          maxScore: MAX_SCORE,
+          totalQuestions: TOTAL_QUESTIONS,
+          correctSelections: totalCorrectSelections,
+          incorrectSelections: totalIncorrectSelections,
+          mirrorErrors: totalMirrorErrors,
+          differentFigureErrors: totalDifferentFigureErrors,
+          avgReactionTime: Math.round(avgRT)
         }
       })
       return
     }
 
-    setFeedback(null)
-    const trial = generateTrial()
-    setTrialData(trial)
+    setShowFeedback(false)
+    setSelectedOptions(new Set())
+    const question = generateQuestion()
+    setQuestionData(question)
     setStartTime(performance.now())
-  }, [currentTrial, results, errorTypes, gamePhase, generateTrial, onComplete])
+  }, [currentQuestion, results, questionResults, gamePhase, generateQuestion, onComplete])
 
   useEffect(() => {
     if (gamePhase === 'test' || gamePhase === 'practice') {
-      startNextTrial()
+      startNextQuestion()
     }
   }, [gamePhase])
 
-  const handleResponse = useCallback((selectedOption: 1 | 2) => {
-    if (!trialData || feedback) return
+  const handleSubmit = useCallback(() => {
+    if (!questionData || showFeedback || selectedOptions.size === 0) return
 
     const reactionTime = performance.now() - startTime
-    const correct = selectedOption === trialData.correctOption
+    const selectedArray = Array.from(selectedOptions)
     
-    // Determine error type
-    let errorType = 'correct'
-    if (!correct) {
-      const selectedShape = selectedOption === 1 ? trialData.option1 : trialData.option2
-      if (selectedShape.isMirrored) {
-        errorType = 'mirror'
-        setErrorTypes(prev => ({ ...prev, mirror: prev.mirror + 1 }))
+    // Check each selected option
+    let correctCount = 0
+    let incorrectCount = 0
+    let mirrorErrors = 0
+    let differentFigureErrors = 0
+    
+    selectedArray.forEach(idx => {
+      const option = questionData.options[idx]
+      if (option.isCorrect) {
+        correctCount++
       } else {
-        errorType = 'rotation'
-        setErrorTypes(prev => ({ ...prev, rotation: prev.rotation + 1 }))
+        incorrectCount++
+        if (option.isMirror) {
+          mirrorErrors++
+        } else if (option.isDifferent) {
+          differentFigureErrors++
+        }
       }
-    }
+    })
 
+    // Track missed correct answers
+    const missedCorrect = questionData.correctIndices.filter(
+      idx => !selectedOptions.has(idx)
+    ).length
+
+    const questionResult = {
+      correct: correctCount,
+      incorrect: incorrectCount,
+      mirrorErrors,
+      differentFigureErrors
+    }
+    
+    setQuestionResults(prev => [...prev, questionResult])
+
+    // Create trial result for this question
     const trialResult: TrialResult = {
-      stimulus: `${trialData.target.type}@${trialData.target.rotation}° | Option1:${trialData.option1.rotation}°${trialData.option1.isMirrored ? 'M' : ''} Option2:${trialData.option2.rotation}°${trialData.option2.isMirrored ? 'M' : ''}`,
-      response: `option${selectedOption}`,
-      correct,
+      stimulus: `Question ${currentQuestion + 1}: ${questionData.target}@${questionData.targetRotation}°`,
+      response: `Selected: ${selectedArray.map(i => i + 1).join(',')} | Correct: ${questionData.correctIndices.map(i => i + 1).join(',')}`,
+      correct: correctCount === 2 && incorrectCount === 0,
       reactionTime,
-      trialType: errorType,
-      status: correct ? 1 : 2
+      trialType: 'mental-rotation',
+      status: correctCount === 2 && incorrectCount === 0 ? 1 : 2
     }
 
-    setResults(prev => [...prev, trialResult])
-    setFeedback(correct ? 'correct' : 'incorrect')
-    setCurrentTrial(prev => prev + 1)
+    if (gamePhase === 'test') {
+      setResults(prev => [...prev, trialResult])
+    }
+    
+    setShowFeedback(true)
 
     setTimeout(() => {
-      startNextTrial()
-    }, 800)
-  }, [trialData, feedback, startTime, startNextTrial])
+      setCurrentQuestion(prev => prev + 1)
+      startNextQuestion()
+    }, gamePhase === 'practice' ? 2000 : 1200)
+  }, [questionData, showFeedback, selectedOptions, startTime, currentQuestion, gamePhase, startNextQuestion])
 
-  useEffect(() => {
-    const handleKeyPress = (event: KeyboardEvent) => {
-      if (!trialData || feedback) return
-      
-      const key = event.key.toLowerCase()
-      if (key === '1' || key === 'z') handleResponse(1)  // 1 or Z for left option
-      if (key === '2' || key === 'm') handleResponse(2)  // 2 or M for right option
-    }
+  const toggleOption = (index: number) => {
+    if (showFeedback) return
+    
+    setSelectedOptions(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(index)) {
+        newSet.delete(index)
+      } else {
+        newSet.add(index)
+      }
+      return newSet
+    })
+  }
 
-    window.addEventListener('keydown', handleKeyPress)
-    return () => window.removeEventListener('keydown', handleKeyPress)
-  }, [trialData, feedback, handleResponse])
-
-  // Render 3D block figures (inspired by Shepard-Metzler mental rotation stimuli)
-  const renderShape = (shape: Shape, size: number = 120, color: string = 'currentColor') => {
-    // Define 3D block configurations (each represents connected cubes in 3D space)
-    const figures: Record<string, React.ReactNode> = {
-      figure1: (
-        // L-shaped 3D configuration
+  // Render 3D block figures
+  const renderShape = (figType: string, rotation: number, isMirror: boolean, size: number = 150) => {
+    const figureShapes: Record<string, React.ReactNode> = {
+      fig1: (
         <g>
-          {/* Base blocks */}
-          <polygon points="50,80 90,60 90,100 50,120" fill={color} opacity="0.9" />
-          <polygon points="50,80 50,120 10,100 10,60" fill={color} opacity="0.7" />
-          <polygon points="10,60 50,80 90,60 50,40" fill={color} opacity="1" />
-          
-          {/* Vertical block */}
-          <polygon points="50,40 90,20 90,60 50,80" fill={color} opacity="0.9" />
-          <polygon points="50,40 50,80 10,60 10,20" fill={color} opacity="0.7" />
-          <polygon points="10,20 50,40 90,20 50,0" fill={color} opacity="1" />
+          <path d="M30,50 L50,40 L50,80 L30,90 Z" fill="#000" />
+          <path d="M50,40 L70,50 L70,90 L50,80 Z" fill="#000" opacity="0.7" />
+          <path d="M30,50 L50,40 L70,50 L50,60 Z" fill="#000" opacity="0.9" />
+          <path d="M50,20 L70,10 L70,50 L50,40 Z" fill="#000" opacity="0.7" />
+          <path d="M30,30 L50,20 L50,40 L30,50 Z" fill="#000" />
+          <path d="M30,30 L50,20 L70,10 L50,0 Z" fill="#000" opacity="0.9" />
         </g>
       ),
-      figure2: (
-        // T-shaped 3D configuration
+      fig2: (
         <g>
-          {/* Horizontal base */}
-          <polygon points="30,70 60,55 60,85 30,100" fill={color} opacity="0.9" />
-          <polygon points="60,55 90,70 90,100 60,85" fill={color} opacity="0.85" />
-          <polygon points="30,70 60,55 90,70 60,85" fill={color} opacity="1" />
-          
-          {/* Vertical stem */}
-          <polygon points="60,25 85,15 85,55 60,65" fill={color} opacity="0.9" />
-          <polygon points="60,25 60,65 35,55 35,15" fill={color} opacity="0.7" />
-          <polygon points="35,15 60,25 85,15 60,5" fill={color} opacity="1" />
+          <path d="M40,60 L60,50 L60,85 L40,95 Z" fill="#000" />
+          <path d="M60,50 L80,60 L80,95 L60,85 Z" fill="#000" opacity="0.7" />
+          <path d="M40,60 L60,50 L80,60 L60,70 Z" fill="#000" opacity="0.9" />
+          <path d="M20,45 L40,35 L40,60 L20,70 Z" fill="#000" />
+          <path d="M40,35 L60,25 L60,50 L40,60 Z" fill="#000" opacity="0.7" />
         </g>
       ),
-      figure3: (
-        // Z-shaped 3D configuration
+      fig3: (
         <g>
-          <polygon points="20,60 50,45 50,65 20,80" fill={color} opacity="0.9" />
-          <polygon points="50,45 80,60 80,80 50,65" fill={color} opacity="0.85" />
-          <polygon points="20,60 50,45 80,60 50,75" fill={color} opacity="1" />
-          
-          <polygon points="50,45 80,30 80,60 50,75" fill={color} opacity="0.9" />
-          <polygon points="80,30 110,45 110,75 80,60" fill={color} opacity="0.85" />
-          <polygon points="50,45 80,30 110,45 80,60" fill={color} opacity="1" />
+          <path d="M35,70 L55,60 L55,90 L35,100 Z" fill="#000" />
+          <path d="M55,60 L75,50 L75,80 L55,90 Z" fill="#000" opacity="0.7" />
+          <path d="M55,30 L75,20 L75,50 L55,60 Z" fill="#000" opacity="0.7" />
+          <path d="M35,40 L55,30 L55,60 L35,70 Z" fill="#000" />
+          <path d="M35,40 L55,30 L75,20 L55,10 Z" fill="#000" opacity="0.9" />
         </g>
       ),
-      figure4: (
-        // Stepped configuration
+      fig4: (
         <g>
-          <polygon points="40,90 70,75 70,95 40,110" fill={color} opacity="0.9" />
-          <polygon points="40,90 40,110 10,95 10,75" fill={color} opacity="0.7" />
-          <polygon points="10,75 40,90 70,75 40,60" fill={color} opacity="1" />
-          
-          <polygon points="70,55 100,40 100,75 70,90" fill={color} opacity="0.9" />
-          <polygon points="70,55 70,90 40,75 40,40" fill={color} opacity="0.7" />
-          <polygon points="40,40 70,55 100,40 70,25" fill={color} opacity="1" />
+          <path d="M25,65 L45,55 L45,85 L25,95 Z" fill="#000" />
+          <path d="M45,55 L65,45 L65,75 L45,85 Z" fill="#000" opacity="0.7" />
+          <path d="M65,45 L85,35 L85,65 L65,75 Z" fill="#000" opacity="0.7" />
+          <path d="M45,25 L65,15 L65,45 L45,55 Z" fill="#000" opacity="0.7" />
+          <path d="M25,35 L45,25 L45,55 L25,65 Z" fill="#000" />
         </g>
       ),
-      figure5: (
-        // Corner configuration
+      fig5: (
         <g>
-          <polygon points="60,60 90,45 90,75 60,90" fill={color} opacity="0.9" />
-          <polygon points="60,60 60,90 30,75 30,45" fill={color} opacity="0.7" />
-          <polygon points="30,45 60,60 90,45 60,30" fill={color} opacity="1" />
-          
-          <polygon points="60,30 90,15 90,45 60,60" fill={color} opacity="0.9" />
-          <polygon points="30,45 60,30 60,60 30,75" fill={color} opacity="0.75" />
+          <path d="M30,55 L50,45 L50,75 L30,85 Z" fill="#000" />
+          <path d="M50,45 L70,35 L70,65 L50,75 Z" fill="#000" opacity="0.7" />
+          <path d="M50,15 L70,5 L70,35 L50,45 Z" fill="#000" opacity="0.7" />
+          <path d="M70,35 L90,25 L90,55 L70,65 Z" fill="#000" opacity="0.7" />
         </g>
       ),
-      figure6: (
-        // Diagonal step
+      fig6: (
         <g>
-          <polygon points="30,80 60,65 60,85 30,100" fill={color} opacity="0.9" />
-          <polygon points="60,65 90,50 90,70 60,85" fill={color} opacity="0.85" />
-          <polygon points="30,80 60,65 90,50 60,35" fill={color} opacity="1" />
-          
-          <polygon points="60,35 90,20 90,50 60,65" fill={color} opacity="0.9" />
+          <path d="M40,65 L60,55 L60,80 L40,90 Z" fill="#000" />
+          <path d="M60,55 L80,45 L80,70 L60,80 Z" fill="#000" opacity="0.7" />
+          <path d="M40,40 L60,30 L60,55 L40,65 Z" fill="#000" />
+          <path d="M20,50 L40,40 L40,65 L20,75 Z" fill="#000" opacity="0.8" />
         </g>
       ),
-      figure7: (
-        // Extended L
+      fig7: (
         <g>
-          <polygon points="35,75 65,60 65,90 35,105" fill={color} opacity="0.9" />
-          <polygon points="35,75 35,105 5,90 5,60" fill={color} opacity="0.7" />
-          <polygon points="5,60 35,75 65,60 35,45" fill={color} opacity="1" />
-          
-          <polygon points="65,60 95,45 95,75 65,90" fill={color} opacity="0.9" />
-          <polygon points="65,30 95,15 95,45 65,60" fill={color} opacity="0.9" />
-          <polygon points="65,30 65,60 35,45 35,15" fill={color} opacity="0.7" />
+          <path d="M35,60 L55,50 L55,80 L35,90 Z" fill="#000" />
+          <path d="M55,50 L75,40 L75,70 L55,80 Z" fill="#000" opacity="0.7" />
+          <path d="M55,20 L75,10 L75,40 L55,50 Z" fill="#000" opacity="0.7" />
+          <path d="M35,30 L55,20 L55,50 L35,60 Z" fill="#000" />
+          <path d="M15,40 L35,30 L35,60 L15,70 Z" fill="#000" opacity="0.8" />
         </g>
       ),
-      figure8: (
-        // Cross-like
+      fig8: (
         <g>
-          <polygon points="60,70 90,55 90,75 60,90" fill={color} opacity="0.9" />
-          <polygon points="30,70 60,55 60,75 30,90" fill={color} opacity="0.85" />
-          <polygon points="60,40 90,25 90,55 60,70" fill={color} opacity="0.9" />
-          <polygon points="60,40 60,70 30,55 30,25" fill={color} opacity="0.7" />
-          <polygon points="30,25 60,40 90,25 60,10" fill={color} opacity="1" />
+          <path d="M45,70 L65,60 L65,85 L45,95 Z" fill="#000" />
+          <path d="M25,55 L45,45 L45,70 L25,80 Z" fill="#000" />
+          <path d="M45,45 L65,35 L65,60 L45,70 Z" fill="#000" opacity="0.7" />
+          <path d="M65,35 L85,25 L85,50 L65,60 Z" fill="#000" opacity="0.7" />
         </g>
       ),
-      figure9: (
-        // Asymmetric bend
+      fig9: (
         <g>
-          <polygon points="45,85 75,70 75,95 45,110" fill={color} opacity="0.9" />
-          <polygon points="45,85 45,110 15,95 15,70" fill={color} opacity="0.7" />
-          <polygon points="75,70 105,55 105,80 75,95" fill={color} opacity="0.85" />
-          <polygon points="75,40 105,25 105,55 75,70" fill={color} opacity="0.9" />
-          <polygon points="45,55 75,40 75,70 45,85" fill={color} opacity="0.8" />
+          <path d="M30,60 L50,50 L50,80 L30,90 Z" fill="#000" />
+          <path d="M50,50 L70,40 L70,70 L50,80 Z" fill="#000" opacity="0.7" />
+          <path d="M70,40 L90,30 L90,60 L70,70 Z" fill="#000" opacity="0.7" />
+          <path d="M50,20 L70,10 L70,40 L50,50 Z" fill="#000" opacity="0.7" />
         </g>
       ),
-      figure10: (
-        // Complex step
+      fig10: (
         <g>
-          <polygon points="50,90 80,75 80,100 50,115" fill={color} opacity="0.9" />
-          <polygon points="50,90 50,115 20,100 20,75" fill={color} opacity="0.7" />
-          <polygon points="50,60 80,45 80,75 50,90" fill={color} opacity="0.9" />
-          <polygon points="80,45 110,30 110,60 80,75" fill={color} opacity="0.85" />
-          <polygon points="50,30 80,15 80,45 50,60" fill={color} opacity="0.9" />
-          <polygon points="50,30 50,60 20,45 20,15" fill={color} opacity="0.7" />
+          <path d="M40,70 L60,60 L60,90 L40,100 Z" fill="#000" />
+          <path d="M60,60 L80,50 L80,80 L60,90 Z" fill="#000" opacity="0.7" />
+          <path d="M40,45 L60,35 L60,60 L40,70 Z" fill="#000" />
+          <path d="M60,35 L80,25 L80,50 L60,60 Z" fill="#000" opacity="0.7" />
+          <path d="M20,55 L40,45 L40,70 L20,80 Z" fill="#000" opacity="0.8" />
+        </g>
+      ),
+      fig11: (
+        <g>
+          <path d="M50,60 L70,50 L70,75 L50,85 Z" fill="#000" />
+          <path d="M30,50 L50,40 L50,60 L30,70 Z" fill="#000" />
+          <path d="M50,40 L70,30 L70,50 L50,60 Z" fill="#000" opacity="0.7" />
+          <path d="M70,30 L90,20 L90,50 L70,60 Z" fill="#000" opacity="0.7" />
+        </g>
+      ),
+      fig12: (
+        <g>
+          <path d="M35,65 L55,55 L55,85 L35,95 Z" fill="#000" />
+          <path d="M55,55 L75,45 L75,75 L55,85 Z" fill="#000" opacity="0.7" />
+          <path d="M75,45 L95,35 L95,65 L75,75 Z" fill="#000" opacity="0.7" />
+          <path d="M35,40 L55,30 L55,55 L35,65 Z" fill="#000" />
+        </g>
+      ),
+      fig13: (
+        <g>
+          <path d="M45,55 L65,45 L65,75 L45,85 Z" fill="#000" />
+          <path d="M25,45 L45,35 L45,55 L25,65 Z" fill="#000" />
+          <path d="M45,35 L65,25 L65,45 L45,55 Z" fill="#000" opacity="0.7" />
+          <path d="M65,25 L85,15 L85,45 L65,55 Z" fill="#000" opacity="0.7" />
+          <path d="M65,45 L85,35 L85,65 L65,75 Z" fill="#000" opacity="0.7" />
+        </g>
+      ),
+      fig14: (
+        <g>
+          <path d="M30,70 L50,60 L50,85 L30,95 Z" fill="#000" />
+          <path d="M50,60 L70,50 L70,75 L50,85 Z" fill="#000" opacity="0.7" />
+          <path d="M30,45 L50,35 L50,60 L30,70 Z" fill="#000" />
+          <path d="M50,35 L70,25 L70,50 L50,60 Z" fill="#000" opacity="0.7" />
+        </g>
+      ),
+      fig15: (
+        <g>
+          <path d="M40,60 L60,50 L60,80 L40,90 Z" fill="#000" />
+          <path d="M60,50 L80,40 L80,70 L60,80 Z" fill="#000" opacity="0.7" />
+          <path d="M20,50 L40,40 L40,60 L20,70 Z" fill="#000" />
+          <path d="M40,40 L60,30 L60,50 L40,60 Z" fill="#000" opacity="0.7" />
+          <path d="M60,30 L80,20 L80,40 L60,50 Z" fill="#000" opacity="0.7" />
+        </g>
+      ),
+      fig16: (
+        <g>
+          <path d="M35,55 L55,45 L55,75 L35,85 Z" fill="#000" />
+          <path d="M55,45 L75,35 L75,65 L55,75 Z" fill="#000" opacity="0.7" />
+          <path d="M55,15 L75,5 L75,35 L55,45 Z" fill="#000" opacity="0.7" />
+          <path d="M35,30 L55,20 L55,45 L35,55 Z" fill="#000" />
         </g>
       )
     }
@@ -301,27 +394,21 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
         viewBox="0 0 120 120"
         className="inline-block"
         style={{
-          transform: `rotate(${shape.rotation}deg) scaleX(${shape.isMirrored ? -1 : 1})`,
-          filter: 'drop-shadow(2px 4px 8px rgba(0,0,0,0.25))'
+          transform: `rotate(${rotation}deg) scaleX(${isMirror ? -1 : 1})`,
+          filter: 'drop-shadow(1px 2px 4px rgba(0,0,0,0.2))'
         }}
       >
-        {figures[shape.type] || figures.figure1}
+        {figureShapes[figType] || figureShapes.fig1}
       </svg>
     )
   }
 
-  const stats = {
-    accuracy: results.length > 0 ? Math.round((results.filter(r => r.correct).length / results.length) * 100) : 0,
-    avgRT: results.length > 0 ? Math.round(results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length) : 0,
-    errors: results.length > 0 ? results.length - results.filter(r => r.correct).length : 0,
-    errorRate: results.length > 0 ? Math.round(((results.length - results.filter(r => r.correct).length) / results.length) * 100) : 0
-  }
-
   const handleInstructionNext = () => {
-    if (instructionPage < 3) {
+    if (instructionPage < 2) {
       setInstructionPage(prev => prev + 1)
     } else {
       setGamePhase('practice')
+      setCurrentQuestion(0)
     }
   }
 
@@ -331,43 +418,42 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
     }
   }
 
-  // Instruction Pages
   // Practice complete transition screen
   if (practiceComplete) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <Card 
           className="max-w-2xl w-full p-8 shadow-2xl cursor-pointer hover:shadow-3xl transition-all border-2 border-green-500/30 bg-green-500/5"
           onClick={() => {
             setPracticeComplete(false)
             setGamePhase('test')
-            setCurrentTrial(0)
+            setCurrentQuestion(0)
             setResults([])
-            setErrorTypes({ mirror: 0, rotation: 0 })
+            setQuestionResults([])
           }}
         >
           <div className="text-center space-y-6">
             <div className="flex justify-center">
-              <div className="p-4 bg-green-100 dark:bg-green-900 rounded-full">
-                <Check size={64} weight="bold" className="text-green-600 dark:text-green-400" />
+              <div className="p-4 bg-green-100 rounded-full">
+                <Check size={64} weight="bold" className="text-green-600" />
               </div>
             </div>
             <div className="space-y-2">
-              <h2 className="text-3xl font-bold">Trial Session Completed!</h2>
-              <p className="text-xl text-muted-foreground">
-                You are now entering the actual game.
+              <h2 className="text-3xl font-bold text-gray-900">Practice Completed!</h2>
+              <p className="text-xl text-gray-600">
+                You are now ready for the actual test.
               </p>
             </div>
-            <div className="bg-muted/50 p-6 rounded-lg space-y-2">
-              <p className="text-lg font-semibold">
-                Your training trial is completed. The real test begins now. Focus!
+            <div className="bg-gray-50 p-6 rounded-lg space-y-2 border">
+              <p className="text-lg font-semibold text-gray-900">
+                The real test begins now. Focus!
               </p>
-              <p className="text-sm text-muted-foreground">
-                You'll complete {TOTAL_TRIALS} trials testing your mental rotation abilities.
+              <p className="text-sm text-gray-600">
+                You'll complete {TOTAL_QUESTIONS} questions. Select 2 correct rotations for each target figure.
               </p>
             </div>
-            <p className="text-primary font-semibold animate-pulse">
-              Click anywhere to continue
+            <p className="text-blue-600 font-semibold animate-pulse">
+              Click anywhere to start
             </p>
           </div>
         </Card>
@@ -377,8 +463,8 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
 
   if (gamePhase === 'instructions') {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4">
-        <Card className="max-w-3xl w-full p-8">
+      <div className="min-h-screen bg-white flex items-center justify-center p-4">
+        <Card className="max-w-4xl w-full p-8 bg-white border-2">
           <AnimatePresence mode="wait">
             <motion.div
               key={instructionPage}
@@ -391,38 +477,34 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
                 <div className="space-y-6">
                   <div className="text-center">
                     <div className="flex items-center justify-center gap-3 mb-2">
-                      <Cube size={40} weight="duotone" className="text-primary" />
-                      <h1 className="text-4xl font-bold">Mental Rotation Test</h1>
+                      <Cube size={40} className="text-blue-600" />
+                      <h1 className="text-4xl font-bold text-gray-900">Mental Rotation Test</h1>
                     </div>
-                    <Badge variant="outline" className="mb-4">Spatial Reasoning</Badge>
+                    <Badge variant="outline" className="mb-4 border-gray-300 text-gray-700">Spatial Reasoning Assessment</Badge>
                   </div>
                   
-                  <div className="space-y-4 text-lg">
+                  <div className="space-y-4 text-lg text-gray-700">
                     <p>
-                      Welcome to the <strong>Mental Rotation Test</strong>, a classic measure of your 
-                      spatial visualization abilities.
+                      This test measures your ability to <strong>mentally rotate 3D objects</strong> in space.
                     </p>
                     
-                    <p>
-                      This test assesses your ability to mentally rotate 3D block figures and identify 
-                      which rotated version matches the target figure. The figures will be rotated at 
-                      simple 90-degree angles to make it easier.
-                    </p>
-
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <p className="font-semibold mb-2">What you'll do:</p>
-                      <ul className="list-disc list-inside space-y-2">
-                        <li>See a gray target 3D figure at the top</li>
-                        <li>See two red 3D figures at the bottom (at different rotations)</li>
-                        <li>Click the red figure that matches the gray one</li>
+                    <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
+                      <h3 className="font-semibold text-xl text-gray-900 mb-3">How it works:</h3>
+                      <ul className="space-y-2 list-disc list-inside">
+                        <li>You will see a <strong>target figure</strong> on the left</li>
+                        <li>You must find <strong>2 correct rotations</strong> from 4 options</li>
+                        <li>Select the 2 figures that are the same as the target (just rotated)</li>
+                        <li>Avoid mirror images and different figures</li>
                       </ul>
                     </div>
 
-                    <div className="border-l-4 border-yellow-500 pl-4 py-2">
-                      <p className="text-base">
-                        <strong>Important:</strong> One red figure is the <strong>same object rotated</strong>, 
-                        the other is a <strong>mirror image</strong> (reflection). Mirror images are wrong!
-                      </p>
+                    <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                      <p className="font-semibold text-gray-900 mb-2">Scoring:</p>
+                      <ul className="space-y-1 text-base">
+                        <li>• Total Questions: <strong>{TOTAL_QUESTIONS}</strong></li>
+                        <li>• Correct Answers per Question: <strong>2</strong></li>
+                        <li>• Maximum Score: <strong>{MAX_SCORE}</strong> points</li>
+                      </ul>
                     </div>
                   </div>
                 </div>
@@ -431,176 +513,113 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
               {instructionPage === 1 && (
                 <div className="space-y-6">
                   <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-2">How to Play</h1>
-                    <Badge variant="outline" className="mb-4">Instructions</Badge>
+                    <h1 className="text-4xl font-bold text-gray-900 mb-2">What to Avoid</h1>
+                    <Badge variant="outline" className="mb-4 border-gray-300 text-gray-700">Important Distinctions</Badge>
                   </div>
                   
-                  <div className="space-y-4 text-lg">
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <p className="font-semibold mb-3">Step-by-Step:</p>
-                      <ol className="list-decimal list-inside space-y-3">
-                        <li>
-                          <strong>Look at the gray 3D figure:</strong> This is your target at the top
-                        </li>
-                        <li>
-                          <strong>Compare the two red figures:</strong> Both are at the bottom
-                        </li>
-                        <li>
-                          <strong>Mentally rotate:</strong> Figure out which red figure is the same as the gray one (just rotated)
-                        </li>
-                        <li>
-                          <strong>Click your choice:</strong> Click on the matching red figure (or press 1/2 keys)
-                        </li>
-                      </ol>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="border border-green-500/30 bg-green-500/5 p-3 rounded">
-                        <h3 className="font-semibold text-green-600 mb-1 flex items-center gap-2">
-                          <Check size={20} weight="bold" />
-                          Correct Choice
-                        </h3>
-                        <p className="text-sm">The red figure that is the SAME object as the gray one, just rotated to a different angle</p>
-                      </div>
-                      <div className="border border-red-500/30 bg-red-500/5 p-3 rounded">
-                        <h3 className="font-semibold text-red-600 mb-1 flex items-center gap-2">
-                          <XCircle size={20} weight="bold" />
-                          Wrong Choice
-                        </h3>
-                        <p className="text-sm">The red figure that is a MIRROR IMAGE (reflection) - it cannot be rotated to match</p>
+                  <div className="space-y-4">
+                    <div className="bg-red-50 border-2 border-red-300 p-6 rounded-lg">
+                      <h3 className="font-semibold text-xl text-red-900 mb-3">❌ Mirror Images</h3>
+                      <p className="text-gray-700 mb-3">
+                        These look similar but are <strong>flipped</strong> (like looking in a mirror). 
+                        They are <strong>NOT</strong> correct answers.
+                      </p>
+                      <div className="bg-white p-4 rounded border border-red-200">
+                        <p className="text-sm text-gray-600 italic">
+                          Think of it like your left and right hands - same shape, but mirror images!
+                        </p>
                       </div>
                     </div>
 
-                    <p className="text-muted-foreground text-base">
-                      <strong>Tip:</strong> Imagine physically rotating the gray figure in 3D space. 
-                      Can it match one of the red figures?
-                    </p>
+                    <div className="bg-orange-50 border-2 border-orange-300 p-6 rounded-lg">
+                      <h3 className="font-semibold text-xl text-orange-900 mb-3">❌ Different Figures</h3>
+                      <p className="text-gray-700 mb-3">
+                        These are <strong>completely different shapes</strong>. 
+                        They may look similar at first glance, but they are <strong>NOT</strong> the same figure.
+                      </p>
+                    </div>
+
+                    <div className="bg-green-50 border-2 border-green-300 p-6 rounded-lg">
+                      <h3 className="font-semibold text-xl text-green-900 mb-3">✓ Correct Rotations</h3>
+                      <p className="text-gray-700">
+                        These are the <strong>same figure as the target</strong>, just turned/rotated in different directions. 
+                        Always select exactly <strong>2 correct rotations</strong>.
+                      </p>
+                    </div>
                   </div>
                 </div>
               )}
 
               {instructionPage === 2 && (
                 <div className="space-y-6">
-                  <div className="text-center">
-                    <h1 className="text-4xl font-bold mb-2">Test Details</h1>
-                    <Badge variant="outline" className="mb-4">What to Expect</Badge>
-                  </div>
-                  
-                  <div className="space-y-4 text-lg">
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <p className="font-semibold mb-3">Test Structure:</p>
-                      <ul className="space-y-2">
-                        <li className="flex items-start gap-2">
-                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">Practice</Badge>
-                          <span>2 practice trials to get familiar with the task</span>
-                        </li>
-                        <li className="flex items-start gap-2">
-                          <Badge variant="outline">Test</Badge>
-                          <span>15 test trials (simplified with 90° rotations)</span>
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div className="bg-primary/5 border border-primary/20 p-4 rounded-lg">
-                      <p className="font-semibold mb-2">Keyboard Shortcuts:</p>
-                      <div className="flex gap-4 justify-center">
-                        <div className="text-center">
-                          <kbd className="px-4 py-2 bg-blue-600 text-white rounded font-bold text-xl">1</kbd>
-                          <p className="text-sm mt-1">Left Option</p>
-                        </div>
-                        <div className="text-center">
-                          <kbd className="px-4 py-2 bg-blue-600 text-white rounded font-bold text-xl">2</kbd>
-                          <p className="text-sm mt-1">Right Option</p>
-                        </div>
-                      </div>
-                      <p className="text-xs text-center text-muted-foreground mt-2">Or simply click on your choice</p>
-                    </div>
-
-                    <div className="border-l-4 border-blue-500 pl-4 py-2">
-                      <p className="text-base">
-                        <strong>Scoring:</strong> You'll receive feedback on your accuracy, average reaction time, 
-                        and error types. Higher accuracy and faster correct responses indicate better spatial 
-                        reasoning ability.
-                      </p>
-                    </div>
-
-                    <p className="text-center text-muted-foreground text-base mt-6">
-                      Ready to start? You'll begin with a <strong className="text-yellow-600">practice trial</strong>.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {instructionPage === 3 && (
-                <div className="space-y-6">
                   <div className="text-center mb-4">
-                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 text-lg px-4 py-2">
-                      🎯 About the Practice Trials
+                    <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 text-lg px-4 py-2">
+                      🎯 Practice Session
                     </Badge>
                   </div>
                   
-                  <div className="space-y-4 text-lg">
+                  <div className="space-y-4 text-lg text-gray-700">
                     <p>
-                      Before the actual test, you'll complete <strong>2 practice trials</strong> to get comfortable with mental rotation.
+                      You'll start with <strong>{PRACTICE_QUESTIONS} practice questions</strong> to familiarize yourself with the task.
                     </p>
                     
-                    <div className="bg-muted/50 p-6 rounded-lg space-y-3">
-                      <p className="font-semibold mb-3">During practice, you will see:</p>
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl text-green-600">✓</span>
-                        <p className="text-base">
-                          A <strong className="text-green-600">green checkmark</strong> when you correctly identify matching shapes
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl text-red-600">✗</span>
-                        <p className="text-base">
-                          A <strong className="text-red-600">red X</strong> when your answer is incorrect
-                        </p>
-                      </div>
-                      <div className="flex items-start gap-3">
-                        <span className="text-2xl">🔄</span>
-                        <p className="text-base">
-                          The card border will <strong>change color</strong> to provide instant feedback
-                        </p>
+                    <div className="bg-gray-50 border border-gray-200 p-6 rounded-lg space-y-3">
+                      <p className="font-semibold text-gray-900 mb-3">During each question:</p>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl">1️⃣</span>
+                          <p>Look at the <strong>target figure</strong> on the left</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl">2️⃣</span>
+                          <p>Check each of the <strong>4 options</strong> on the right</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl">3️⃣</span>
+                          <p>Click the checkboxes to select <strong>exactly 2 correct rotations</strong></p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <span className="text-2xl">4️⃣</span>
+                          <p>Click <strong>"Submit Answer"</strong> when ready</p>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="bg-primary/10 p-4 rounded-lg border-l-4 border-primary">
-                      <p className="text-base font-semibold">
-                        💡 Strategy Tip: Mentally rotate one shape to see if it matches the other. Mirror images can't be rotated to match!
+                    <div className="bg-blue-50 border-l-4 border-blue-500 p-4">
+                      <p className="font-semibold text-gray-900">
+                        💡 Tip: Take your time to mentally rotate the target figure and compare it carefully with each option!
                       </p>
                     </div>
-
-                    <p className="text-center text-muted-foreground text-base mt-4">
-                      Use these practice trials to develop your mental rotation strategy before the scored test.
-                    </p>
                   </div>
                 </div>
               )}
 
-              <div className="flex justify-between mt-8 pt-6 border-t">
+              <div className="flex justify-between mt-8 pt-6 border-t border-gray-200">
                 <Button
                   onClick={handleInstructionPrev}
                   variant="outline"
                   disabled={instructionPage === 0}
+                  className="border-gray-300"
                 >
                   Previous
                 </Button>
                 
                 <div className="flex gap-2">
-                  {[0, 1, 2, 3].map(page => (
+                  {[0, 1, 2].map(page => (
                     <div
                       key={page}
                       className={`h-2 w-2 rounded-full transition-colors ${
-                        page === instructionPage ? 'bg-primary' : 'bg-muted'
+                        page === instructionPage ? 'bg-blue-600' : 'bg-gray-300'
                       }`}
                     />
                   ))}
                 </div>
 
-                <Button onClick={handleInstructionNext}>
-                  {instructionPage === 3 ? 'Start Practice' : 'Next'}
+                <Button 
+                  onClick={handleInstructionNext}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {instructionPage === 2 ? 'Start Practice' : 'Next'}
                 </Button>
               </div>
             </motion.div>
@@ -610,170 +629,149 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
     )
   }
 
-  const maxTrials = gamePhase === 'practice' ? PRACTICE_TRIALS : TOTAL_TRIALS
+  const maxQuestions = gamePhase === 'practice' ? PRACTICE_QUESTIONS : TOTAL_QUESTIONS
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
-      <div className="p-6 border-b border-border/50 backdrop-blur-sm bg-card/50 flex items-center justify-between">
-        <div className="flex-1 space-y-3">
-          <div className="flex items-center gap-4">
-            {gamePhase === 'practice' && (
-              <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100">
-                Practice
-              </Badge>
-            )}
-            <Progress value={(currentTrial / maxTrials) * 100} className="h-2 flex-1" />
-            <span className="text-sm font-medium text-muted-foreground min-w-20 text-right">
-              {currentTrial}/{maxTrials}
-            </span>
-          </div>
-          <div className="flex gap-3">
-            <Badge variant="outline" className="gap-2">
-              <span className="text-xs text-muted-foreground">Accuracy</span>
-              <span className="font-bold">{stats.accuracy}%</span>
+    <div className="min-h-screen bg-white flex flex-col">
+      <div className="p-6 border-b-2 border-gray-200 bg-white flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {gamePhase === 'practice' && (
+            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 gap-2 px-4 py-2">
+              <span className="text-lg font-bold">Practice Mode</span>
             </Badge>
-            <Badge variant="outline" className="gap-2">
-              <span className="text-xs text-muted-foreground">Avg RT</span>
-              <span className="font-bold">{stats.avgRT}ms</span>
+          )}
+          {gamePhase === 'test' && (
+            <Badge variant="outline" className="gap-2 px-4 py-2 border-gray-300">
+              <Cube size={20} className="text-blue-600" />
+              <div className="flex flex-col items-start">
+                <span className="text-xs text-gray-600">Mental Rotation Test</span>
+                <span className="text-xl font-bold text-gray-900">Question {currentQuestion + 1}/{maxQuestions}</span>
+              </div>
             </Badge>
-            <Badge variant="outline" className="gap-2">
-              <span className="text-xs text-muted-foreground">Errors</span>
-              <span className="font-bold text-destructive">
-                {stats.errors} ({stats.errorRate}%) | M:{errorTypes.mirror} R:{errorTypes.rotation}
-              </span>
-            </Badge>
+          )}
+          <div className="w-64">
+            <Progress value={((currentQuestion) / maxQuestions) * 100} className="h-2" />
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onExit} className="ml-4">
+        <Button variant="ghost" size="icon" onClick={onExit}>
           <X size={24} />
         </Button>
       </div>
 
       <div className="flex-1 flex items-center justify-center p-8">
-        <AnimatePresence mode="wait">
-          {trialData && (
-            <motion.div
-              key={currentTrial}
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="w-full max-w-4xl"
-            >
-              <Card className={`p-12 border-2 shadow-2xl transition-all duration-200 ${
-                feedback === 'correct' 
-                  ? 'border-success bg-success/5' 
-                  : feedback === 'incorrect'
-                  ? 'border-destructive bg-destructive/5'
-                  : 'border-border/50 bg-card/80 backdrop-blur-sm'
-              }`}>
-                <AnimatePresence>
-                  {feedback && (
-                    <motion.div
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      exit={{ scale: 0, opacity: 0 }}
-                      className={`absolute -top-6 -right-6 p-3 rounded-full ${
-                        feedback === 'correct' ? 'bg-success' : 'bg-destructive'
-                      }`}
-                    >
-                      {feedback === 'correct' ? (
-                        <Check size={32} weight="bold" className="text-white" />
-                      ) : (
-                        <XCircle size={32} weight="bold" className="text-white" />
-                      )}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+        {questionData && (
+          <div className="max-w-6xl w-full">
+            <Card className="p-8 bg-white border-2 border-gray-200 shadow-lg">
+              <div className="mb-6 text-center">
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  Select the 2 correct rotations of the target figure
+                </h2>
+                <p className="text-gray-600">
+                  Choose exactly 2 options that match the target (avoid mirrors and different figures)
+                </p>
+              </div>
 
-                <div className="text-center mb-8">
-                  <p className="text-lg font-semibold text-muted-foreground mb-2">
-                    Which red object matches the grey one when rotated?
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    The shapes rotate in 90° steps. Imagine turning the grey shape.
-                  </p>
-                </div>
-
-                {/* Target letter at top (gray) */}
-                <motion.div
-                  initial={{ y: -50, opacity: 0 }}
-                  animate={{ y: 0, opacity: 1 }}
-                  transition={{ delay: 0.1 }}
-                  className="flex justify-center mb-12"
-                >
-                  <Card className="p-8 bg-white dark:bg-gray-800 border-4 border-gray-400">
-                    <div className="text-gray-600 dark:text-gray-400">
-                      {renderShape(trialData.target, 200, '#6b7280')}
+              <div className="flex gap-8 items-start justify-center">
+                {/* Target Figure */}
+                <div className="flex flex-col items-center">
+                  <div className="bg-gray-100 border-4 border-blue-500 rounded-lg p-8 mb-3">
+                    <div className="text-center mb-2">
+                      <Badge className="bg-blue-600 text-white mb-3">TARGET</Badge>
                     </div>
-                  </Card>
-                </motion.div>
-
-                {/* Two comparison options at bottom (red) */}
-                <div className="grid grid-cols-2 gap-8 mb-8">
-                  <motion.div
-                    initial={{ x: -100, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex flex-col items-center"
-                  >
-                    <button
-                      onClick={() => handleResponse(1)}
-                      disabled={feedback !== null}
-                      className={`p-8 bg-white dark:bg-gray-800 border-4 rounded-lg transition-all ${
-                        feedback === null 
-                          ? 'border-red-500 hover:border-red-600 hover:scale-105 cursor-pointer'
-                          : feedback === 'correct' && trialData.correctOption === 1
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : feedback === 'incorrect' && trialData.correctOption !== 1
-                          ? 'border-red-600 bg-red-50 dark:bg-red-900/20'
-                          : 'border-red-500'
-                      }`}
-                    >
-                      <div className="text-red-600 dark:text-red-500">
-                        {renderShape(trialData.option1, 160, '#dc2626')}
-                      </div>
-                    </button>
-                    <Badge variant="outline" className="mt-4 text-sm">Option 1 (Press 1)</Badge>
-                  </motion.div>
-
-                  <motion.div
-                    initial={{ x: 100, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                    className="flex flex-col items-center"
-                  >
-                    <button
-                      onClick={() => handleResponse(2)}
-                      disabled={feedback !== null}
-                      className={`p-8 bg-white dark:bg-gray-800 border-4 rounded-lg transition-all ${
-                        feedback === null 
-                          ? 'border-red-500 hover:border-red-600 hover:scale-105 cursor-pointer'
-                          : feedback === 'correct' && trialData.correctOption === 2
-                          ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
-                          : feedback === 'incorrect' && trialData.correctOption !== 2
-                          ? 'border-red-600 bg-red-50 dark:bg-red-900/20'
-                          : 'border-red-500'
-                      }`}
-                    >
-                      <div className="text-red-600 dark:text-red-500">
-                        {renderShape(trialData.option2, 160, '#dc2626')}
-                      </div>
-                    </button>
-                    <Badge variant="outline" className="mt-4 text-sm">Option 2 (Press 2)</Badge>
-                  </motion.div>
+                    {renderShape(questionData.target, questionData.targetRotation, false, 180)}
+                  </div>
+                  <p className="text-sm font-semibold text-gray-700">Example</p>
                 </div>
-              </Card>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
 
-      <div className="p-6 border-t border-border/50 backdrop-blur-sm bg-card/50">
-        <p className="text-center text-sm text-muted-foreground">
-          Press <kbd className="px-2 py-1 bg-muted rounded">1</kbd> for Left or{' '}
-          <kbd className="px-2 py-1 bg-muted rounded">2</kbd> for Right
-        </p>
+                {/* Options Grid */}
+                <div className="flex-1">
+                  <div className="grid grid-cols-2 gap-6">
+                    {questionData.options.map((option, idx) => {
+                      const isSelected = selectedOptions.has(idx)
+                      const isCorrect = option.isCorrect
+                      const showResult = showFeedback
+
+                      let borderColor = 'border-gray-300'
+                      let bgColor = 'bg-white'
+                      
+                      if (showResult) {
+                        if (isCorrect && isSelected) {
+                          borderColor = 'border-green-500'
+                          bgColor = 'bg-green-50'
+                        } else if (isCorrect && !isSelected) {
+                          borderColor = 'border-orange-500'
+                          bgColor = 'bg-orange-50'
+                        } else if (!isCorrect && isSelected) {
+                          borderColor = 'border-red-500'
+                          bgColor = 'bg-red-50'
+                        }
+                      } else if (isSelected) {
+                        borderColor = 'border-blue-500'
+                        bgColor = 'bg-blue-50'
+                      }
+
+                      return (
+                        <div
+                          key={idx}
+                          className={`${bgColor} border-2 ${borderColor} rounded-lg p-6 transition-all cursor-pointer hover:shadow-md relative`}
+                          onClick={() => !showFeedback && toggleOption(idx)}
+                        >
+                          <div className="absolute top-3 left-3 flex items-center gap-2">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={() => !showFeedback && toggleOption(idx)}
+                              className="border-gray-400"
+                            />
+                            <span className="text-sm font-semibold text-gray-700">Option {idx + 1}</span>
+                          </div>
+                          
+                          {showResult && (
+                            <div className="absolute top-3 right-3">
+                              {isCorrect && isSelected && (
+                                <Badge className="bg-green-600 text-white">✓ Correct</Badge>
+                              )}
+                              {isCorrect && !isSelected && (
+                                <Badge className="bg-orange-600 text-white">Missed</Badge>
+                              )}
+                              {!isCorrect && isSelected && (
+                                <Badge className="bg-red-600 text-white">
+                                  ✗ {option.isMirror ? 'Mirror' : 'Different'}
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+
+                          <div className="flex justify-center mt-8">
+                            {renderShape(option.figure, option.rotation, option.isMirror, 160)}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {!showFeedback && (
+                    <div className="mt-6 flex justify-center">
+                      <Button
+                        onClick={handleSubmit}
+                        disabled={selectedOptions.size === 0}
+                        size="lg"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
+                      >
+                        Submit Answer ({selectedOptions.size}/2 selected)
+                      </Button>
+                    </div>
+                  )}
+
+                  {showFeedback && gamePhase === 'practice' && (
+                    <div className="mt-6 text-center">
+                      <p className="text-gray-600">Moving to next question...</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
       </div>
     </div>
   )

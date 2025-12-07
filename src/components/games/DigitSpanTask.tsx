@@ -53,7 +53,46 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
   const [showGetReady, setShowGetReady] = useState(true)
 
   const generateSequence = (length: number): number[] => {
-    return Array.from({ length }, () => Math.floor(Math.random() * 10))
+    const sequence: number[] = []
+    let consecutiveCount = 0
+    let lastConsecutiveDirection: 'up' | 'down' | null = null
+    
+    while (sequence.length < length) {
+      const digit = Math.floor(Math.random() * 10)
+      const lastDigit = sequence[sequence.length - 1]
+      const secondLastDigit = sequence[sequence.length - 2]
+      
+      // Rule 1: Don't allow same digit more than once consecutively (no 2,2 or 3,3,3)
+      if (lastDigit !== undefined && digit === lastDigit) {
+        continue
+      }
+      
+      // Rule 2: Don't allow more than 2 consecutive digits in sequence (like 3,4,5 or 5,4,3)
+      if (lastDigit !== undefined) {
+        const isConsecutiveUp = digit === lastDigit + 1
+        const isConsecutiveDown = digit === lastDigit - 1
+        
+        if (isConsecutiveUp || isConsecutiveDown) {
+          const currentDirection = isConsecutiveUp ? 'up' : 'down'
+          
+          // Check if we already have 2 consecutive digits in same direction
+          if (secondLastDigit !== undefined) {
+            const wasConsecutiveUp = lastDigit === secondLastDigit + 1
+            const wasConsecutiveDown = lastDigit === secondLastDigit - 1
+            const prevDirection = wasConsecutiveUp ? 'up' : wasConsecutiveDown ? 'down' : null
+            
+            // If continuing the same consecutive pattern, reject
+            if (prevDirection === currentDirection) {
+              continue
+            }
+          }
+        }
+      }
+      
+      sequence.push(digit)
+    }
+    
+    return sequence
   }
 
   const startNewTrial = (isPractice = false) => {
@@ -94,7 +133,7 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
       }, DIGIT_DISPLAY_DURATION)
       return () => clearTimeout(timer)
     } else if (isDisplaying && currentDigitIndex >= currentSequence.length) {
-      console.log('All digits displayed, moving to input phase')
+      console.log('Sequence display complete, moving to input phase')
       const timer = setTimeout(() => {
         setIsDisplaying(false)
         setIsInputPhase(true)
@@ -203,7 +242,13 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
       ? allResults.reduce((sum, r) => sum + r.reactionTime, 0) / allResults.length
       : 0
 
-    const finalMaxSpan = Math.max(currentSpan - 1, maxSpan)
+    // Calculate the correct max span: highest span length where user got at least one correct answer
+    const correctResults = allResults.filter(r => r.correct)
+    const highestCorrectSpan = correctResults.length > 0 
+      ? Math.max(...correctResults.map(r => r.spanLength))
+      : INITIAL_SPAN - 1
+    
+    const finalMaxSpan = highestCorrectSpan
 
     const trialResults: TrialResult[] = allResults.map((trial, idx) => ({
       stimulus: trial.sequence.join(' '),
@@ -214,8 +259,13 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
       status: trial.correct ? 1 : 2
     }))
 
+    // Calculate base score from max span and add 10% bonus for total correct sequences
+    const baseScore = finalMaxSpan
+    const correctSequenceBonus = Math.round(totalCorrect * 0.1 * 10) / 10 // 10% per correct sequence
+    const totalScore = baseScore + correctSequenceBonus
+
     const summary: GameSummary = {
-      score: finalMaxSpan,
+      score: totalScore,
       accuracy: totalTrials > 0 ? (totalCorrect / totalTrials) * 100 : 0,
       reactionTime: avgRT,
       errorCount,
@@ -225,7 +275,8 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
         maxSpan: finalMaxSpan,
         mode: selectedMode,
         correctSequences: totalCorrect,
-        customMessage: `You successfully remembered the sequence ${totalCorrect} times in a row. Your best sequence length: ${finalMaxSpan}`
+        correctSequenceBonus: correctSequenceBonus,
+        customMessage: `Max Span: ${finalMaxSpan} | Total Correct: ${totalCorrect} (+${correctSequenceBonus.toFixed(1)} bonus) | Final Score: ${totalScore.toFixed(1)}`
       }
     }
 

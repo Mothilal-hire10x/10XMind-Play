@@ -23,11 +23,13 @@ const COLOR_VALUES: Record<ColorType, string> = {
   YELLOW: 'oklch(0.85 0.18 95)'
 }
 
-const TOTAL_TRIALS = 40 // PsyToolkit standard: minimum 40 trials for reliable Stroop effect measurement
+const CONGRUENT_TRIALS = 48 // Number of congruent trials
+const INCONGRUENT_TRIALS = 48 // Number of incongruent trials
+const TOTAL_TRIALS = CONGRUENT_TRIALS + INCONGRUENT_TRIALS // Total: 96 trials
 const RESPONSE_TIMEOUT = 3000 // PsyToolkit standard: timeout after 3 seconds
-const FIXATION_DURATION = 500 // Fixation cross duration in ms
+const FIXATION_DURATION = 1000 // Gap between words: 1000ms
 const FEEDBACK_DURATION = 400 // Feedback display duration in ms
-const PRACTICE_TRIALS = 1 // Number of practice trials
+const PRACTICE_TRIALS = 3 // Number of practice trials
 
 export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
   // Instruction and practice state
@@ -44,11 +46,34 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
   const [showFixation, setShowFixation] = useState(true)
   const [streak, setStreak] = useState(0)
   const [timeoutId, setTimeoutId] = useState<number | null>(null)
+  const [trialSequence, setTrialSequence] = useState<Array<'congruent' | 'incongruent'>>([])
 
-  const generateStimulus = useCallback((): { word: ColorType; color: ColorType } => {
-    const word = COLORS[Math.floor(Math.random() * COLORS.length)]
+  // Generate balanced trial sequence (48 congruent + 48 incongruent, randomized)
+  const generateTrialSequence = useCallback(() => {
+    const sequence: Array<'congruent' | 'incongruent'> = [
+      ...Array(CONGRUENT_TRIALS).fill('congruent'),
+      ...Array(INCONGRUENT_TRIALS).fill('incongruent')
+    ] as Array<'congruent' | 'incongruent'>
+    // Shuffle the sequence
+    for (let i = sequence.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [sequence[i], sequence[j]] = [sequence[j], sequence[i]]
+    }
+    return sequence
+  }, [])
+
+  const generateStimulus = useCallback((trialType: 'congruent' | 'incongruent'): { word: ColorType; color: ColorType } => {
     const color = COLORS[Math.floor(Math.random() * COLORS.length)]
-    return { word, color }
+    if (trialType === 'congruent') {
+      return { word: color, color }
+    } else {
+      // Incongruent: word and color must be different
+      let word = COLORS[Math.floor(Math.random() * COLORS.length)]
+      while (word === color) {
+        word = COLORS[Math.floor(Math.random() * COLORS.length)]
+      }
+      return { word, color }
+    }
   }, [])
 
   // Handle timeout (PsyToolkit standard: status 3 = timeout)
@@ -88,44 +113,55 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
         return
       }
       
-      // Test complete
+      // Test complete - Calculate detailed results
       const totalCorrect = results.filter(r => r.correct).length
       const totalTimeout = results.filter(r => r.trialType === 'timeout').length
       const avgRT = results
         .filter(r => r.trialType !== 'timeout')
         .reduce((sum, r) => sum + r.reactionTime, 0) / (results.length - totalTimeout)
       
-      // Calculate Stroop Interference Effect (PsyToolkit standard calculation)
-      const congruentTrials = results.filter(r => r.trialType === 'congruent' || r.trialType === 'congruent')
-      const incongruentTrials = results.filter(r => r.trialType === 'incongruent' || r.trialType === 'incongruent')
+      // Separate congruent and incongruent trials
+      const congruentTrials = results.filter(r => r.trialType === 'congruent')
+      const incongruentTrials = results.filter(r => r.trialType === 'incongruent')
       
-      const congruentRT = congruentTrials.filter(t => t.correct).length > 0 
-        ? congruentTrials.filter(t => t.correct).reduce((sum, r) => sum + r.reactionTime, 0) / congruentTrials.filter(t => t.correct).length 
-        : 0
-      const incongruentRT = incongruentTrials.filter(t => t.correct).length > 0 
-        ? incongruentTrials.filter(t => t.correct).reduce((sum, r) => sum + r.reactionTime, 0) / incongruentTrials.filter(t => t.correct).length 
+      // Calculate RT for congruent trials (only correct responses)
+      const congruentCorrectTrials = congruentTrials.filter(t => t.correct && t.trialType !== 'timeout')
+      const congruentRT = congruentCorrectTrials.length > 0 
+        ? Math.round(congruentCorrectTrials.reduce((sum, r) => sum + r.reactionTime, 0) / congruentCorrectTrials.length)
         : 0
       
-      const stroopEffect = incongruentRT - congruentRT
-      const errorCount = TOTAL_TRIALS - totalCorrect
-      const errorRate = (errorCount / TOTAL_TRIALS) * 100
+      // Calculate RT for incongruent trials (only correct responses)
+      const incongruentCorrectTrials = incongruentTrials.filter(t => t.correct && t.trialType !== 'timeout')
+      const incongruentRT = incongruentCorrectTrials.length > 0 
+        ? Math.round(incongruentCorrectTrials.reduce((sum, r) => sum + r.reactionTime, 0) / incongruentCorrectTrials.length)
+        : 0
+      
+      // Calculate Stroop Interference Effect: RT(incongruent) - RT(congruent)
+      const stroopInterferenceEffect = incongruentRT - congruentRT
+      
+      // Error rates (number of incorrect responses)
+      const congruentErrors = congruentTrials.filter(r => !r.correct).length
+      const incongruentErrors = incongruentTrials.filter(r => !r.correct).length
+      const totalErrors = TOTAL_TRIALS - totalCorrect
       
       onComplete(results, {
         score: totalCorrect,
         accuracy: (totalCorrect / TOTAL_TRIALS) * 100,
         reactionTime: avgRT,
-        errorCount,
-        errorRate,
+        errorCount: totalErrors,
+        errorRate: (totalErrors / TOTAL_TRIALS) * 100,
         details: {
           congruentRT,
           incongruentRT,
-          stroopEffect, // PsyToolkit standard naming
-          errorRate,
-          timeoutRate: (totalTimeout / TOTAL_TRIALS) * 100,
+          stroopInterferenceEffect,
+          congruentErrors,
+          incongruentErrors,
+          totalErrors,
           congruentTrials: congruentTrials.length,
           incongruentTrials: incongruentTrials.length,
           congruentCorrect: congruentTrials.filter(r => r.correct).length,
-          incongruentCorrect: incongruentTrials.filter(r => r.correct).length
+          incongruentCorrect: incongruentTrials.filter(r => r.correct).length,
+          timeoutRate: (totalTimeout / TOTAL_TRIALS) * 100
         }
       })
       return
@@ -135,7 +171,13 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
     setFeedback(null)
     setTimeout(() => {
       setShowFixation(false)
-      const newStimulus = generateStimulus()
+      
+      // For practice, use random trial type; for test, use sequence
+      const trialType = gamePhase === 'practice' 
+        ? (Math.random() > 0.5 ? 'congruent' : 'incongruent')
+        : trialSequence[currentTrial]
+      
+      const newStimulus = generateStimulus(trialType)
       setStimulus(newStimulus)
       setStartTime(performance.now())
       
@@ -148,10 +190,14 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
   }, [currentTrial, results, generateStimulus, onComplete, timeoutId, gamePhase])
 
   useEffect(() => {
-    if (gamePhase === 'practice' || gamePhase === 'test') {
+    if (gamePhase === 'test') {
+      // Generate trial sequence for test phase
+      setTrialSequence(generateTrialSequence())
+      startNextTrial()
+    } else if (gamePhase === 'practice') {
       startNextTrial()
     }
-  }, [gamePhase])
+  }, [gamePhase, generateTrialSequence])
 
   const handleKeyPress = useCallback((event: KeyboardEvent) => {
     if (!stimulus || showFixation || feedback) return
@@ -200,6 +246,47 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
     window.addEventListener('keydown', handleKeyPress)
     return () => window.removeEventListener('keydown', handleKeyPress)
   }, [handleKeyPress])
+
+  // Handle button clicks
+  const handleButtonClick = useCallback((color: ColorType) => {
+    if (!stimulus || showFixation || feedback) return
+    if (gamePhase === 'instructions') return
+
+    // Clear timeout on response
+    if (timeoutId) {
+      clearTimeout(timeoutId)
+      setTimeoutId(null)
+    }
+
+    const reactionTime = performance.now() - startTime
+    const response = color
+    const correct = response === stimulus.color
+    
+    // PsyToolkit standard: Status 1=correct, 2=wrong, 3=timeout
+    const status = correct ? 1 : 2
+
+    const trialResult: TrialResult = {
+      stimulus: `${stimulus.word} (${stimulus.color})`,
+      response,
+      correct,
+      reactionTime,
+      trialType: stimulus.word === stimulus.color ? 'congruent' : 'incongruent',
+      status // Add PsyToolkit status code
+    }
+
+    // Only save results during actual test, not practice
+    if (gamePhase === 'test') {
+      setResults(prev => [...prev, trialResult])
+    }
+    
+    setFeedback(correct ? 'correct' : 'incorrect')
+    setStreak(prev => correct ? prev + 1 : 0)
+    setCurrentTrial(prev => prev + 1)
+
+    setTimeout(() => {
+      startNextTrial()
+    }, FEEDBACK_DURATION)
+  }, [stimulus, showFixation, feedback, startTime, timeoutId, startNextTrial, gamePhase])
 
   const stats = useMemo(() => {
     const correct = results.filter(r => r.correct).length
@@ -289,10 +376,10 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
                   className="space-y-6"
                 >
                   <p className="text-lg leading-relaxed">
-                    You will complete {TOTAL_TRIALS} trials in total.
+                    You will complete {TOTAL_TRIALS} trials in total ({CONGRUENT_TRIALS} congruent + {INCONGRUENT_TRIALS} incongruent trials).
                   </p>
                   <p className="text-lg leading-relaxed">
-                    First, you will do <strong>1 practice trial</strong> to get familiar with the task.
+                    First, you will do <strong>{PRACTICE_TRIALS} practice trials</strong> to get familiar with the task.
                   </p>
                   <p className="text-lg leading-relaxed">
                     After the practice, the real test will begin.
@@ -313,11 +400,11 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
                 >
                   <div className="text-center mb-4">
                     <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 text-lg px-4 py-2">
-                      🎯 About the Practice Trial
+                      🎯 About the Practice Trials
                     </Badge>
                   </div>
                   <p className="text-lg leading-relaxed">
-                    During the <strong>practice trial</strong>, you will see:
+                    During the <strong>{PRACTICE_TRIALS} practice trials</strong>, you will see:
                   </p>
                   <div className="bg-muted/50 p-6 rounded-lg space-y-3">
                     <div className="flex items-start gap-3">
@@ -404,7 +491,7 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
         <Card className="max-w-2xl p-12 bg-yellow-500/10 border-4 border-yellow-500 cursor-pointer hover:bg-yellow-500/20 transition-all">
           <div className="text-center space-y-6">
             <h2 className="text-3xl font-bold text-foreground">
-              Now you have done your training trial.
+              Now you have completed your {PRACTICE_TRIALS} practice trials.
             </h2>
             <p className="text-2xl font-semibold text-foreground">
               The real test begins now. Concentrate!
@@ -526,7 +613,7 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
       <div className="p-6 border-t border-border/50 backdrop-blur-sm bg-card/50">
         <div className="max-w-2xl mx-auto">
           <p className="text-center text-sm text-muted-foreground mb-4">
-            Press the key for the <strong>ink color</strong>, not the word
+            Press the key for the <strong>ink color</strong>, not the word (or click the buttons below)
           </p>
           <div className="grid grid-cols-4 gap-3">
             {Object.entries(COLOR_KEYS).map(([key, color]) => (
@@ -536,12 +623,16 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
                 whileTap={{ scale: 0.95 }}
                 className="text-center"
               >
-                <div className="p-4 bg-gradient-to-br from-card to-muted/50 rounded-lg border border-border/50 shadow-sm">
-                  <kbd className="block text-2xl font-mono font-bold mb-2" style={{ color: COLOR_VALUES[color] }}>
+                <button
+                  onClick={() => handleButtonClick(color)}
+                  disabled={!stimulus || showFixation || !!feedback}
+                  className="w-full p-4 bg-gradient-to-br from-card to-muted/50 rounded-lg border border-border/50 shadow-sm hover:shadow-md hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm disabled:hover:border-border/50 active:scale-95"
+                >
+                  <kbd className="block text-2xl font-mono font-bold mb-2 pointer-events-none" style={{ color: COLOR_VALUES[color] }}>
                     {key.toUpperCase()}
                   </kbd>
-                  <span className="text-xs text-muted-foreground font-medium">{color}</span>
-                </div>
+                  <span className="text-xs text-muted-foreground font-medium pointer-events-none">{color}</span>
+                </button>
               </motion.div>
             ))}
           </div>
