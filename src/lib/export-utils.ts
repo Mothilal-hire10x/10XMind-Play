@@ -273,6 +273,10 @@ export function generateStudentSummaryCSV(data: ExportData): string {
   
   const headers = [
     'Student Email',
+    'Student Name',
+    'Roll Number',
+    'Date of Birth',
+    'Consent Date',
     'Member Since',
     'Total Games Played',
     'Average Score',
@@ -289,6 +293,10 @@ export function generateStudentSummaryCSV(data: ExportData): string {
       if (studentResults.length === 0) {
         return [
           student.email,
+          student.name || 'N/A',
+          student.rollNo || 'N/A',
+          student.dob || 'N/A',
+          student.consentDate || 'N/A',
           new Date(student.createdAt).toLocaleDateString(),
           '0',
           'N/A',
@@ -308,6 +316,10 @@ export function generateStudentSummaryCSV(data: ExportData): string {
 
       return [
         student.email,
+        student.name || 'N/A',
+        student.rollNo || 'N/A',
+        student.dob || 'N/A',
+        student.consentDate || 'N/A',
         new Date(student.createdAt).toLocaleDateString(),
         studentResults.length.toString(),
         (totalScore / studentResults.length).toFixed(2),

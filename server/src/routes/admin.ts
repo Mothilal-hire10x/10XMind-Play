@@ -15,6 +15,10 @@ function toUserResponse(user: User): UserResponse {
     id: user.id,
     email: user.email,
     role: user.role,
+    rollNo: user.roll_no,
+    name: user.name,
+    dob: user.dob,
+    consentDate: user.consent_date,
     createdAt: user.created_at
   };
 }

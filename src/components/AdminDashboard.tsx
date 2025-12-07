@@ -493,18 +493,34 @@ export function AdminDashboard() {
                             className="p-4 rounded-lg border bg-card hover:shadow-md transition-all"
                           >
                             <div className="flex items-start justify-between mb-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
+                              <div className="flex items-center gap-3 flex-1">
+                                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0">
                                   <UserIcon size={20} weight="bold" className="text-primary-foreground" />
                                 </div>
-                                <div>
-                                  <h3 className="font-semibold">{stat.student.email}</h3>
-                                  <p className="text-xs text-muted-foreground">
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="font-semibold truncate">{stat.student.name || stat.student.email}</h3>
+                                    {stat.student.rollNo && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {stat.student.rollNo}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                                    <span className="truncate">{stat.student.email}</span>
+                                    {stat.student.dob && (
+                                      <>
+                                        <span>•</span>
+                                        <span>DOB: {stat.student.dob}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-0.5">
                                     Joined {formatDate(stat.student.createdAt)}
                                   </p>
                                 </div>
                               </div>
-                              <Badge variant={stat.gamesPlayed > 0 ? "default" : "secondary"}>
+                              <Badge variant={stat.gamesPlayed > 0 ? "default" : "secondary"} className="flex-shrink-0">
                                 {stat.gamesPlayed} games
                               </Badge>
                             </div>
@@ -985,30 +1001,65 @@ export function AdminDashboard() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <CalendarBlank size={24} className="text-primary" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Registration Date</p>
-                        <p className="font-semibold">{formatDate(selectedStudentDetails.createdAt)}</p>
+                  <div className="space-y-4">
+                    {/* Personal Details */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b">
+                      <div className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Email</p>
+                        <p className="font-semibold">{selectedStudentDetails.email}</p>
                       </div>
+                      {selectedStudentDetails.name && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Name</p>
+                          <p className="font-semibold">{selectedStudentDetails.name}</p>
+                        </div>
+                      )}
+                      {selectedStudentDetails.rollNo && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Roll Number</p>
+                          <p className="font-semibold">{selectedStudentDetails.rollNo}</p>
+                        </div>
+                      )}
+                      {selectedStudentDetails.dob && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Date of Birth</p>
+                          <p className="font-semibold">{selectedStudentDetails.dob}</p>
+                        </div>
+                      )}
+                      {selectedStudentDetails.consentDate && (
+                        <div className="space-y-1">
+                          <p className="text-xs text-muted-foreground">Consent Date</p>
+                          <p className="font-semibold">{selectedStudentDetails.consentDate}</p>
+                        </div>
+                      )}
                     </div>
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <Trophy size={24} className="text-blue-600" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Total Games</p>
-                        <p className="font-semibold">{getStudentGameResults(selectedStudentDetails.id).length}</p>
+
+                    {/* Activity Stats */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                        <CalendarBlank size={24} className="text-primary" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Registration Date</p>
+                          <p className="font-semibold">{formatDate(selectedStudentDetails.createdAt)}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                      <Clock size={24} className="text-green-600" />
-                      <div>
-                        <p className="text-xs text-muted-foreground">Last Activity</p>
-                        <p className="font-semibold">
-                          {getStudentGameResults(selectedStudentDetails.id).length > 0
-                            ? formatDate(Math.max(...getStudentGameResults(selectedStudentDetails.id).map(r => r.timestamp)))
-                            : 'No activity yet'}
-                        </p>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                        <Trophy size={24} className="text-blue-600" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Games</p>
+                          <p className="font-semibold">{getStudentGameResults(selectedStudentDetails.id).length}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                        <Clock size={24} className="text-green-600" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Last Activity</p>
+                          <p className="font-semibold">
+                            {getStudentGameResults(selectedStudentDetails.id).length > 0
+                              ? formatDate(Math.max(...getStudentGameResults(selectedStudentDetails.id).map(r => r.timestamp)))
+                              : 'No activity yet'}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>
