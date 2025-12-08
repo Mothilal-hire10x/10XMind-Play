@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { AuthProvider, useAuth } from '@/lib/auth-context'
 import { ThemeProvider } from '@/lib/theme-context'
 import { resultsAPI } from '@/lib/api-client'
@@ -21,6 +22,54 @@ import { getGameById } from '@/lib/games'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
 import { TenXBot } from '@/components/TenXBot'
+import { pageSlideUp, pageFade } from '@/lib/animations'
+
+// Page transition wrapper component
+const PageTransition = ({ children, keyId }: { children: React.ReactNode, keyId: string }) => (
+  <motion.div
+    key={keyId}
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -10 }}
+    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+  >
+    {children}
+  </motion.div>
+)
+
+// Loading screen with animation
+const LoadingScreen = () => (
+  <motion.div 
+    className="min-h-screen bg-background flex flex-col items-center justify-center gap-4"
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+  >
+    <motion.div
+      className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center shadow-xl shadow-primary/25"
+      animate={{ 
+        scale: [1, 1.1, 1],
+        rotate: [0, 180, 360]
+      }}
+      transition={{ 
+        duration: 2, 
+        repeat: Infinity,
+        ease: "easeInOut"
+      }}
+    >
+      <svg className="w-8 h-8 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <path d="M12 2a10 10 0 1 0 10 10" strokeLinecap="round"/>
+      </svg>
+    </motion.div>
+    <motion.p 
+      className="text-muted-foreground font-medium"
+      animate={{ opacity: [0.5, 1, 0.5] }}
+      transition={{ duration: 1.5, repeat: Infinity }}
+    >
+      Loading...
+    </motion.p>
+  </motion.div>
+)
 
 type Screen = 'dashboard' | 'instructions' | 'game' | 'results' | 'view-results'
 
@@ -31,19 +80,27 @@ function AppContent() {
   const [currentGameSummary, setCurrentGameSummary] = useState<GameSummary | null>(null)
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Loading...</p>
-      </div>
-    )
+    return <LoadingScreen />
   }
 
   if (!user) {
-    return <AuthScreen />
+    return (
+      <AnimatePresence mode="wait">
+        <PageTransition keyId="auth">
+          <AuthScreen />
+        </PageTransition>
+      </AnimatePresence>
+    )
   }
 
   if (user.role === 'admin') {
-    return <AdminDashboard />
+    return (
+      <AnimatePresence mode="wait">
+        <PageTransition keyId="admin">
+          <AdminDashboard />
+        </PageTransition>
+      </AnimatePresence>
+    )
   }
 
   const handleSelectGame = (gameId: string) => {
@@ -117,27 +174,41 @@ function AppContent() {
 
   return (
     <>
-      {screen === 'dashboard' && (
-        <StudentOnboarding onSelectGame={handleSelectGame} onViewResults={handleViewResults} />
-      )}
-      {screen === 'instructions' && selectedGameId && (
-        <GameInstructions
-          gameId={selectedGameId}
-          onStart={handleStartGame}
-          onBack={handleBackToDashboard}
-        />
-      )}
-      {screen === 'game' && renderGame()}
-      {screen === 'results' && selectedGameId && currentGameSummary && (
-        <GameResults
-          gameName={getGameById(selectedGameId)?.name || ''}
-          summary={currentGameSummary}
-          onContinue={handleBackToDashboard}
-        />
-      )}
-      {screen === 'view-results' && (
-        <ResultsDashboard onBack={handleBackToDashboard} />
-      )}
+      <AnimatePresence mode="wait">
+        {screen === 'dashboard' && (
+          <PageTransition keyId="dashboard">
+            <StudentOnboarding onSelectGame={handleSelectGame} onViewResults={handleViewResults} />
+          </PageTransition>
+        )}
+        {screen === 'instructions' && selectedGameId && (
+          <PageTransition keyId="instructions">
+            <GameInstructions
+              gameId={selectedGameId}
+              onStart={handleStartGame}
+              onBack={handleBackToDashboard}
+            />
+          </PageTransition>
+        )}
+        {screen === 'game' && (
+          <PageTransition keyId="game">
+            {renderGame()}
+          </PageTransition>
+        )}
+        {screen === 'results' && selectedGameId && currentGameSummary && (
+          <PageTransition keyId="results">
+            <GameResults
+              gameName={getGameById(selectedGameId)?.name || ''}
+              summary={currentGameSummary}
+              onContinue={handleBackToDashboard}
+            />
+          </PageTransition>
+        )}
+        {screen === 'view-results' && (
+          <PageTransition keyId="view-results">
+            <ResultsDashboard onBack={handleBackToDashboard} />
+          </PageTransition>
+        )}
+      </AnimatePresence>
       <Toaster />
     </>
   )

@@ -6,13 +6,15 @@ import { GAMES } from '@/lib/games'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive, Trash, Warning, Eye, CalendarBlank, Clock, CheckCircle, XCircle } from '@phosphor-icons/react'
+import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive, Trash, Warning, Eye, CalendarBlank, Clock, CheckCircle, XCircle, Brain, Sparkle } from '@phosphor-icons/react'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useInView } from 'react-intersection-observer'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Dialog,
   DialogContent,
@@ -55,6 +57,56 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { staggerContainer, staggerItem, springs } from '@/lib/animations'
+
+// Animated stat card with intersection observer
+const AnimatedStatCard = ({ children, index = 0, className = '' }: { children: React.ReactNode, index?: number, className?: string }) => {
+  const { ref, inView } = useInView({ triggerOnce: true, threshold: 0.1 })
+  
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      initial={{ opacity: 0, y: 30, scale: 0.95 }}
+      animate={inView ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 30, scale: 0.95 }}
+      transition={{ duration: 0.5, delay: index * 0.1, ...springs.smooth }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+// Loading skeleton for admin dashboard
+const AdminLoadingSkeleton = () => (
+  <div className="space-y-8">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {[1, 2, 3, 4].map((i) => (
+        <Card key={i} className="border-2">
+          <CardHeader className="pb-3">
+            <Skeleton className="h-4 w-24" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-20 mb-2" />
+            <Skeleton className="h-3 w-32" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+    <Card className="border-2">
+      <CardHeader>
+        <Skeleton className="h-6 w-48" />
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-4">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  </div>
+)
 
 // Helper to convert API response to GameResult
 function apiToGameResult(apiResult: any): GameResult {
@@ -319,135 +371,197 @@ export function AdminDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 relative">
+      {/* Animated background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]" />
+        <motion.div
+          className="absolute top-0 left-1/4 w-[500px] h-[500px] rounded-full bg-primary/5 blur-3xl"
+          animate={{ x: [0, 50, 0], y: [0, 30, 0], scale: [1, 1.1, 1] }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+        />
+        <motion.div
+          className="absolute bottom-0 right-1/4 w-[500px] h-[500px] rounded-full bg-blue-500/5 blur-3xl"
+          animate={{ x: [0, -50, 0], y: [0, -30, 0], scale: [1.1, 1, 1.1] }}
+          transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      </div>
       
       <div className="relative z-10">
         <motion.header 
-          className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-20"
+          className="border-b border-border/50 bg-card/80 backdrop-blur-xl sticky top-0 z-20 shadow-sm"
           initial={{ y: -20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.4 }}
         >
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary via-blue-600 to-purple-600 flex items-center justify-center shadow-md">
-                <ChartBar size={24} weight="bold" className="text-primary-foreground" />
-              </div>
+              <motion.div 
+                className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary via-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-primary/25 relative"
+                whileHover={{ scale: 1.05, rotate: 5 }}
+                transition={springs.bouncy}
+              >
+                <motion.div
+                  className="absolute inset-0 rounded-xl bg-primary/30"
+                  animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                />
+                <ChartBar size={24} weight="bold" className="text-primary-foreground relative z-10" />
+              </motion.div>
               <div>
                 <h1 className="text-xl font-bold flex items-center gap-1">
-                  <span className="text-blue-600 dark:text-blue-400">10</span>XMindPlay Admin
+                  <span className="bg-gradient-to-r from-blue-600 to-primary bg-clip-text text-transparent">10</span>XMindPlay Admin
                 </h1>
                 <p className="text-xs text-muted-foreground">Analytics Dashboard</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="default" className="gap-2 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-700">
-                    <DownloadSimple size={16} weight="bold" />
-                    Export Reports
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>Export Options</DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2 cursor-pointer">
-                    <FileCsv size={16} className="text-green-600" />
-                    <span>Detailed Report (CSV)</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2 cursor-pointer">
-                    <FilePdf size={16} className="text-red-600" />
-                    <span>Detailed Report (PDF)</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => handleExport('student-csv')} className="gap-2 cursor-pointer">
-                    <FileCsv size={16} className="text-blue-600" />
-                    <span>Student Summary (CSV)</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleExport('game-csv')} className="gap-2 cursor-pointer">
-                    <FileCsv size={16} className="text-purple-600" />
-                    <span>Game Summary (CSV)</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="default" className="gap-2 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-700 shadow-lg shadow-primary/25">
+                      <DownloadSimple size={16} weight="bold" />
+                      Export Reports
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-56">
+                    <DropdownMenuLabel>Export Options</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleExport('csv')} className="gap-2 cursor-pointer">
+                      <FileCsv size={16} className="text-green-600" />
+                      <span>Detailed Report (CSV)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('pdf')} className="gap-2 cursor-pointer">
+                      <FilePdf size={16} className="text-red-600" />
+                      <span>Detailed Report (PDF)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleExport('student-csv')} className="gap-2 cursor-pointer">
+                      <FileCsv size={16} className="text-blue-600" />
+                      <span>Student Summary (CSV)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => handleExport('game-csv')} className="gap-2 cursor-pointer">
+                      <FileCsv size={16} className="text-purple-600" />
+                      <span>Game Summary (CSV)</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </motion.div>
               <ThemeToggle />
-              <Button variant="outline" onClick={logout} className="gap-2">
-                <SignOut size={16} />
-                Sign Out
-              </Button>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button variant="outline" onClick={logout} className="gap-2 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-all">
+                  <SignOut size={16} />
+                  Sign Out
+                </Button>
+              </motion.div>
             </div>
           </div>
         </motion.header>
 
         <main className="container mx-auto px-4 py-8">
+          {isLoading ? (
+            <AdminLoadingSkeleton />
+          ) : (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <div className="flex flex-col gap-2 mb-6">
-              <h2 className="text-3xl font-bold">Student Progress Analytics</h2>
+            <div className="flex flex-col gap-2 mb-8">
+              <div className="flex items-center gap-3">
+                <motion.div
+                  animate={{ rotate: [0, 15, -15, 0] }}
+                  transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                >
+                  <Sparkle size={28} className="text-primary" weight="fill" />
+                </motion.div>
+                <h2 className="text-3xl font-bold">Student Progress Analytics</h2>
+              </div>
               <p className="text-muted-foreground">Monitor and analyze cognitive training performance</p>
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-              <Card className="border-2 hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Users size={16} className="text-primary" />
-                    Total Students
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-primary">{overallStats.totalStudents}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Registered users</p>
-                </CardContent>
-              </Card>
+            <motion.div 
+              className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8"
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+            >
+              <AnimatedStatCard index={0}>
+                <Card className="border-2 hover:shadow-xl transition-all duration-300 backdrop-blur-sm bg-card/95 overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <CardHeader className="pb-3 relative">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Users size={16} className="text-primary" />
+                      </div>
+                      Total Students
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="relative">
+                    <div className="text-4xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">{overallStats.totalStudents}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Registered users</p>
+                  </CardContent>
+                </Card>
+              </AnimatedStatCard>
 
-              <Card className="border-2 hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Trophy size={16} className="text-blue-600" />
-                    Total Games
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-blue-600">{overallStats.totalGames}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Games completed</p>
-                </CardContent>
-              </Card>
+              <AnimatedStatCard index={1}>
+                <Card className="border-2 hover:shadow-xl transition-all duration-300 backdrop-blur-sm bg-card/95 overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <CardHeader className="pb-3 relative">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                        <Trophy size={16} className="text-blue-600" />
+                      </div>
+                      Total Games
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="relative">
+                    <div className="text-4xl font-bold text-blue-600">{overallStats.totalGames}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Games completed</p>
+                  </CardContent>
+                </Card>
+              </AnimatedStatCard>
 
-              <Card className="border-2 hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Target size={16} className="text-green-600" />
-                    Avg Accuracy
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-green-600">
-                    {overallStats.avgAccuracy.toFixed(1)}%
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Overall accuracy</p>
-                </CardContent>
-              </Card>
+              <AnimatedStatCard index={2}>
+                <Card className="border-2 hover:shadow-xl transition-all duration-300 backdrop-blur-sm bg-card/95 overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <CardHeader className="pb-3 relative">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                        <Target size={16} className="text-green-600" />
+                      </div>
+                      Avg Accuracy
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="relative">
+                    <div className="text-4xl font-bold text-green-600">
+                      {overallStats.avgAccuracy.toFixed(1)}%
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Overall accuracy</p>
+                  </CardContent>
+                </Card>
+              </AnimatedStatCard>
 
-              <Card className="border-2 hover:shadow-lg transition-shadow">
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <TrendUp size={16} className="text-orange-600" />
-                    Avg Score
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-3xl font-bold text-orange-600">
-                    {overallStats.avgScore.toFixed(0)}
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1">Performance score</p>
-                </CardContent>
-              </Card>
-            </div>
+              <AnimatedStatCard index={3}>
+                <Card className="border-2 hover:shadow-xl transition-all duration-300 backdrop-blur-sm bg-card/95 overflow-hidden group">
+                  <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <CardHeader className="pb-3 relative">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-orange-500/10 flex items-center justify-center">
+                        <TrendUp size={16} className="text-orange-600" />
+                      </div>
+                      Avg Score
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="relative">
+                    <div className="text-4xl font-bold text-orange-600">
+                      {overallStats.avgScore.toFixed(0)}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">Performance score</p>
+                  </CardContent>
+                </Card>
+              </AnimatedStatCard>
+            </motion.div>
 
             <Tabs defaultValue="students" className="space-y-4">
               <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
@@ -970,6 +1084,7 @@ export function AdminDashboard() {
               </TabsContent>
             </Tabs>
           </motion.div>
+          )}
         </main>
       </div>
 

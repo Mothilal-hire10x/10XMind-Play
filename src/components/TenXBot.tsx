@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { aiAPI, ChatMessage } from '@/lib/api-client'
@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { springs } from '@/lib/animations'
 
 // Icons
 const BotIcon = () => (
@@ -35,6 +36,57 @@ const SparkleIcon = () => (
     <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z"/>
   </svg>
 )
+
+// Magnetic FAB wrapper
+const MagneticFAB = ({ children, onClick }: { children: React.ReactNode, onClick: () => void }) => {
+  const ref = useRef<HTMLButtonElement>(null)
+  const x = useMotionValue(0)
+  const y = useMotionValue(0)
+  
+  const springX = useSpring(x, { stiffness: 400, damping: 25 })
+  const springY = useSpring(y, { stiffness: 400, damping: 25 })
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    x.set((e.clientX - centerX) * 0.2)
+    y.set((e.clientY - centerY) * 0.2)
+  }
+
+  const handleMouseLeave = () => {
+    x.set(0)
+    y.set(0)
+  }
+
+  return (
+    <motion.button
+      ref={ref}
+      style={{ x: springX, y: springY }}
+      initial={{ scale: 0, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      exit={{ scale: 0, opacity: 0 }}
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.95 }}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      onClick={onClick}
+      className={cn(
+        "fixed bottom-6 right-6 z-50",
+        "w-16 h-16 rounded-full",
+        "bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600",
+        "text-white shadow-2xl shadow-purple-500/40",
+        "flex items-center justify-center",
+        "hover:shadow-[0_0_40px_rgba(168,85,247,0.5)]",
+        "transition-shadow duration-300"
+      )}
+      aria-label="Open 10XBot"
+    >
+      {children}
+    </motion.button>
+  )
+}
 
 interface Message extends ChatMessage {
   id: string
@@ -227,24 +279,7 @@ export function TenXBot() {
       {/* Floating Button */}
       <AnimatePresence>
         {!isOpen && (
-          <motion.button
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setIsOpen(true)}
-            className={cn(
-              "fixed bottom-6 right-6 z-50",
-              "w-14 h-14 rounded-full",
-              "bg-gradient-to-br from-violet-500 to-purple-600",
-              "text-white shadow-lg shadow-purple-500/30",
-              "flex items-center justify-center",
-              "hover:shadow-xl hover:shadow-purple-500/40",
-              "transition-shadow duration-300"
-            )}
-            aria-label="Open 10XBot"
-          >
+          <MagneticFAB onClick={() => setIsOpen(true)}>
             <motion.div
               animate={{ 
                 rotate: [0, 10, -10, 0],
@@ -258,14 +293,23 @@ export function TenXBot() {
               <BotIcon />
             </motion.div>
             
-            {/* Pulse ring animation */}
+            {/* Multiple pulse rings */}
+            <motion.div
+              className="absolute inset-0 rounded-full bg-purple-400"
+              initial={{ scale: 1, opacity: 0.4 }}
+              animate={{ scale: 1.8, opacity: 0 }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
             <motion.div
               className="absolute inset-0 rounded-full bg-purple-500"
-              initial={{ scale: 1, opacity: 0.5 }}
+              initial={{ scale: 1, opacity: 0.3 }}
               animate={{ scale: 1.5, opacity: 0 }}
-              transition={{ duration: 1.5, repeat: Infinity }}
+              transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
             />
-          </motion.button>
+            
+            {/* Glow effect */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 blur-xl opacity-50 -z-10" />
+          </MagneticFAB>
         )}
       </AnimatePresence>
 
@@ -279,53 +323,76 @@ export function TenXBot() {
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
             className={cn(
               "fixed bottom-6 right-6 z-50",
-              "w-[380px] h-[560px] max-h-[80vh]",
+              "w-[400px] h-[600px] max-h-[85vh]",
               "bg-background/95 backdrop-blur-xl",
-              "border border-border/50 rounded-2xl",
+              "border border-border/50 rounded-3xl",
               "shadow-2xl shadow-black/20",
               "flex flex-col overflow-hidden"
             )}
           >
+            {/* Gradient border effect */}
+            <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-violet-500/20 via-transparent to-fuchsia-500/20 pointer-events-none" />
+            
             {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-gradient-to-r from-violet-500/10 to-purple-500/10">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-fuchsia-500/10 relative">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white">
+                <motion.div 
+                  className="w-11 h-11 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600 flex items-center justify-center text-white shadow-lg shadow-purple-500/30 relative"
+                  whileHover={{ scale: 1.05 }}
+                  transition={springs.snappy}
+                >
+                  <motion.div
+                    className="absolute inset-0 rounded-full bg-purple-400/50"
+                    animate={{ scale: [1, 1.3, 1], opacity: [0.5, 0, 0.5] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  />
                   <BotIcon />
-                </div>
+                </motion.div>
                 <div>
-                  <h3 className="font-semibold text-foreground flex items-center gap-1.5">
+                  <h3 className="font-bold text-foreground flex items-center gap-1.5 text-lg">
                     10XBot
                     <motion.span
-                      animate={{ rotate: [0, 15, -15, 0] }}
-                      transition={{ duration: 0.5, repeat: Infinity, repeatDelay: 2 }}
+                      animate={{ rotate: [0, 20, -20, 0], scale: [1, 1.2, 1] }}
+                      transition={{ duration: 0.6, repeat: Infinity, repeatDelay: 2 }}
+                      className="text-yellow-500"
                     >
                       <SparkleIcon />
                     </motion.span>
                   </h3>
-                  <p className="text-xs text-muted-foreground">
-                    {isAvailable ? 'AI Assistant' : 'Offline'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "w-2 h-2 rounded-full",
+                      isAvailable ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                    )} />
+                    <p className="text-xs text-muted-foreground">
+                      {isAvailable ? 'AI Assistant • Online' : 'Offline'}
+                    </p>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-1">
                 {messages.length > 0 && (
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearHistory}
+                      className="text-xs text-muted-foreground hover:text-foreground rounded-full"
+                    >
+                      Clear
+                    </Button>
+                  </motion.div>
+                )}
+                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={clearHistory}
-                    className="text-xs text-muted-foreground hover:text-foreground"
+                    size="icon"
+                    onClick={() => setIsOpen(false)}
+                    className="h-9 w-9 rounded-full hover:bg-muted"
                   >
-                    Clear
+                    <CloseIcon />
                   </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setIsOpen(false)}
-                  className="h-8 w-8 rounded-full hover:bg-muted"
-                >
-                  <CloseIcon />
-                </Button>
+                </motion.div>
               </div>
             </div>
 
@@ -458,7 +525,7 @@ export function TenXBot() {
             {/* Input */}
             <form 
               onSubmit={handleSubmit} 
-              className="flex items-center gap-2 p-4 border-t border-border/50 bg-muted/30"
+              className="flex items-center gap-3 p-4 border-t border-border/50 bg-gradient-to-r from-muted/30 via-muted/20 to-muted/30"
             >
               <Input
                 ref={inputRef}
@@ -466,16 +533,18 @@ export function TenXBot() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={isAvailable ? "Ask me anything..." : "AI service unavailable"}
                 disabled={!isAvailable || isLoading}
-                className="flex-1 bg-background border-border/50 focus-visible:ring-purple-500/50"
+                className="flex-1 bg-background border-border/50 focus-visible:ring-purple-500/50 rounded-xl h-11"
               />
-              <Button 
-                type="submit" 
-                size="icon"
-                disabled={!input.trim() || isLoading || !isAvailable}
-                className="bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white rounded-full h-10 w-10"
-              >
-                <SendIcon />
-              </Button>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button 
+                  type="submit" 
+                  size="icon"
+                  disabled={!input.trim() || isLoading || !isAvailable}
+                  className="bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-600 hover:from-violet-600 hover:to-fuchsia-700 text-white rounded-xl h-11 w-11 shadow-lg shadow-purple-500/25 disabled:opacity-50"
+                >
+                  <SendIcon />
+                </Button>
+              </motion.div>
             </form>
           </motion.div>
         )}

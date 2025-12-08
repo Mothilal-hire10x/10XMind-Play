@@ -1,13 +1,92 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useAuth } from '@/lib/auth-context'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Brain, EnvelopeSimple, LockKey, Sparkle } from '@phosphor-icons/react'
+import { Brain, EnvelopeSimple, LockKey, Sparkle, CircleNotch } from '@phosphor-icons/react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { motion } from 'framer-motion'
+import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
+import { fadeInUp, staggerContainer, staggerItem, springs } from '@/lib/animations'
+
+// Floating particles component
+const FloatingParticles = () => {
+  const particles = Array.from({ length: 20 }, (_, i) => ({
+    id: i,
+    size: Math.random() * 4 + 2,
+    x: Math.random() * 100,
+    y: Math.random() * 100,
+    duration: Math.random() * 10 + 10,
+    delay: Math.random() * 5,
+  }))
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {particles.map((particle) => (
+        <motion.div
+          key={particle.id}
+          className="absolute rounded-full bg-primary/20"
+          style={{
+            width: particle.size,
+            height: particle.size,
+            left: `${particle.x}%`,
+            top: `${particle.y}%`,
+          }}
+          animate={{
+            y: [0, -30, 0],
+            x: [0, 15, -15, 0],
+            opacity: [0.2, 0.5, 0.2],
+          }}
+          transition={{
+            duration: particle.duration,
+            repeat: Infinity,
+            delay: particle.delay,
+            ease: 'easeInOut',
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+// Magnetic button component
+const MagneticButton = ({ children, className, ...props }: React.ComponentProps<typeof Button>) => {
+  const ref = useRef<HTMLButtonElement>(null)
+  const x = useMotionValue(0)
+  const y = useMotionValue(0)
+  
+  const springX = useSpring(x, { stiffness: 300, damping: 20 })
+  const springY = useSpring(y, { stiffness: 300, damping: 20 })
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!ref.current) return
+    const rect = ref.current.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    x.set((e.clientX - centerX) * 0.15)
+    y.set((e.clientY - centerY) * 0.15)
+  }
+
+  const handleMouseLeave = () => {
+    x.set(0)
+    y.set(0)
+  }
+
+  return (
+    <motion.div style={{ x: springX, y: springY }}>
+      <Button
+        ref={ref}
+        className={className}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        {...props}
+      >
+        {children}
+      </Button>
+    </motion.div>
+  )
+}
 
 export function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true)
@@ -56,7 +135,28 @@ export function AuthScreen() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5 p-3 sm:p-4 md:p-6 relative overflow-hidden">
+      {/* Animated background elements */}
+      <FloatingParticles />
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
+      
+      {/* Gradient orbs */}
+      <motion.div 
+        className="absolute -top-40 -right-40 w-80 h-80 rounded-full bg-gradient-to-br from-primary/30 to-blue-500/20 blur-3xl"
+        animate={{ 
+          scale: [1, 1.2, 1],
+          opacity: [0.3, 0.5, 0.3],
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div 
+        className="absolute -bottom-40 -left-40 w-80 h-80 rounded-full bg-gradient-to-br from-purple-500/20 to-primary/30 blur-3xl"
+        animate={{ 
+          scale: [1.2, 1, 1.2],
+          opacity: [0.5, 0.3, 0.5],
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      
       <motion.div 
         className="absolute top-2 right-2 sm:top-4 sm:right-4 z-20"
         initial={{ opacity: 0, scale: 0.8 }}
@@ -68,34 +168,57 @@ export function AuthScreen() {
       <div className="w-full max-w-[95%] sm:max-w-md relative z-10">
         <motion.div 
           className="flex flex-col items-center mb-4 sm:mb-6 md:mb-8"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
+          variants={staggerContainer}
+          initial="hidden"
+          animate="visible"
         >
           <motion.div 
-            className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-br from-primary via-blue-600 to-purple-600 flex items-center justify-center mb-3 sm:mb-4 shadow-lg"
+            className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-primary via-blue-600 to-purple-600 flex items-center justify-center mb-3 sm:mb-4 shadow-xl shadow-primary/25 relative"
+            variants={staggerItem}
             whileHover={{ scale: 1.1, rotate: 5 }}
-            transition={{ type: "spring", stiffness: 300 }}
+            transition={springs.bouncy}
           >
-            <Brain size={24} className="sm:hidden text-primary-foreground" weight="bold" />
-            <Brain size={28} className="hidden sm:block md:hidden text-primary-foreground" weight="bold" />
-            <Brain size={32} className="hidden md:block text-primary-foreground" weight="bold" />
+            {/* Pulse ring */}
+            <motion.div
+              className="absolute inset-0 rounded-full bg-primary/30"
+              animate={{ scale: [1, 1.4, 1], opacity: [0.5, 0, 0.5] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            />
+            <Brain size={28} className="sm:hidden text-primary-foreground relative z-10" weight="bold" />
+            <Brain size={32} className="hidden sm:block md:hidden text-primary-foreground relative z-10" weight="bold" />
+            <Brain size={40} className="hidden md:block text-primary-foreground relative z-10" weight="bold" />
           </motion.div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight flex items-center gap-1.5 sm:gap-2">
-            <span className="text-blue-600 dark:text-blue-400">10</span>XMindPlay
-            <Sparkle size={16} className="sm:hidden text-blue-600 dark:text-blue-400" weight="fill" />
-            <Sparkle size={20} className="hidden sm:block text-blue-600 dark:text-blue-400" weight="fill" />
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1.5 sm:mt-2">Cognitive Training Platform</p>
+          <motion.h1 
+            className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground tracking-tight flex items-center gap-1.5 sm:gap-2"
+            variants={staggerItem}
+          >
+            <span className="bg-gradient-to-r from-blue-600 to-primary bg-clip-text text-transparent">10</span>
+            <span>XMindPlay</span>
+            <motion.span
+              animate={{ rotate: [0, 15, -15, 0] }}
+              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+            >
+              <Sparkle size={20} className="sm:hidden text-blue-600 dark:text-blue-400" weight="fill" />
+              <Sparkle size={24} className="hidden sm:block text-blue-600 dark:text-blue-400" weight="fill" />
+            </motion.span>
+          </motion.h1>
+          <motion.p 
+            className="text-sm sm:text-base text-muted-foreground mt-1.5 sm:mt-2"
+            variants={staggerItem}
+          >
+            Cognitive Training Platform
+          </motion.p>
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <Card className="shadow-lg sm:shadow-xl border border-border sm:border-2">
-            <CardHeader className="space-y-1 sm:space-y-1.5 p-4 sm:p-6">
+          <Card className="shadow-2xl sm:shadow-2xl border border-border/50 sm:border-2 backdrop-blur-sm bg-card/95 overflow-hidden">
+            {/* Shimmer effect on card */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" style={{ animationDelay: '1s' }} />
+            <CardHeader className="space-y-1 sm:space-y-1.5 p-4 sm:p-6 relative">
               <CardTitle className="text-xl sm:text-2xl">{isLogin ? 'Welcome Back' : 'Create Account'}</CardTitle>
               <CardDescription className="text-sm sm:text-base">
                 {isLogin ? 'Sign in to continue your training' : 'Start your cognitive training journey'}
@@ -185,35 +308,60 @@ export function AuthScreen() {
 
                 {error && (
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
+                    initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={springs.snappy}
                   >
-                    <Alert variant="destructive">
+                    <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
                       <AlertDescription>{error}</AlertDescription>
                     </Alert>
                   </motion.div>
                 )}
 
-                <Button 
+                <MagneticButton 
                   type="submit" 
-                  className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-md transition-all text-sm sm:text-base h-9 sm:h-10" 
+                  className="w-full bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all text-sm sm:text-base h-10 sm:h-11 font-semibold" 
                   disabled={loading}
                 >
-                  {loading ? 'Please wait...' : isLogin ? 'Sign In' : 'Sign Up'}
-                </Button>
+                  {loading ? (
+                    <motion.span 
+                      className="flex items-center gap-2"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      <CircleNotch size={18} className="animate-spin" />
+                      Please wait...
+                    </motion.span>
+                  ) : (
+                    <motion.span
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                    >
+                      {isLogin ? 'Sign In' : 'Sign Up'}
+                    </motion.span>
+                  )}
+                </MagneticButton>
 
-                <div className="text-center text-xs sm:text-sm">
-                  <button
+                <motion.div 
+                  className="text-center text-xs sm:text-sm pt-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  <motion.button
                     type="button"
                     onClick={() => {
                       setIsLogin(!isLogin)
                       setError('')
                     }}
-                    className="text-primary hover:underline transition-all"
+                    className="text-primary hover:underline transition-all font-medium"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                   >
                     {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-                  </button>
-                </div>
+                  </motion.button>
+                </motion.div>
               </form>
             </CardContent>
           </Card>

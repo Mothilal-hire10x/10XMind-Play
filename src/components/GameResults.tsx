@@ -1,9 +1,12 @@
+import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { CheckCircle, ArrowRight, Trophy, Target, Timer, XCircle } from '@phosphor-icons/react'
+import { CheckCircle, ArrowRight, Trophy, Target, Timer, XCircle, Confetti, Star, Medal } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/ThemeToggle'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
+import ConfettiExplosion from 'react-confetti-explosion'
+import { staggerContainer, staggerItem, springs, celebrateIn } from '@/lib/animations'
 
 interface GameResultsProps {
   gameName: string
@@ -24,17 +27,72 @@ interface GameResultsProps {
 }
 
 export function GameResults({ gameName, summary, onContinue }: GameResultsProps) {
+  const [showConfetti, setShowConfetti] = useState(false)
+  const [showSecondConfetti, setShowSecondConfetti] = useState(false)
+  
+  // Trigger confetti on mount for good performance
+  useEffect(() => {
+    if (summary.accuracy >= 60) {
+      setShowConfetti(true)
+      // Second burst for excellent performance
+      if (summary.accuracy >= 90) {
+        setTimeout(() => setShowSecondConfetti(true), 500)
+      }
+    }
+  }, [summary.accuracy])
+  
   const getPerformanceBadge = (accuracy: number) => {
-    if (accuracy >= 90) return { label: 'Excellent', className: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md' }
-    if (accuracy >= 75) return { label: 'Good', className: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-md' }
-    if (accuracy >= 60) return { label: 'Fair', className: 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-md' }
-    return { label: 'Keep Practicing', className: 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md' }
+    if (accuracy >= 90) return { label: 'Excellent', className: 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg shadow-green-500/25', icon: Star }
+    if (accuracy >= 75) return { label: 'Good', className: 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg shadow-blue-500/25', icon: Medal }
+    if (accuracy >= 60) return { label: 'Fair', className: 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white shadow-lg shadow-yellow-500/25', icon: Trophy }
+    return { label: 'Keep Practicing', className: 'bg-gradient-to-r from-gray-500 to-gray-600 text-white shadow-md', icon: Target }
   }
 
   const badge = getPerformanceBadge(summary.accuracy)
+  const BadgeIcon = badge.icon
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex items-center justify-center p-3 sm:p-4 md:p-6 relative overflow-hidden">
+      {/* Confetti celebrations */}
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
+        {showConfetti && (
+          <ConfettiExplosion
+            force={0.8}
+            duration={3000}
+            particleCount={summary.accuracy >= 90 ? 200 : 100}
+            width={1600}
+            colors={['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899']}
+          />
+        )}
+        {showSecondConfetti && (
+          <ConfettiExplosion
+            force={0.6}
+            duration={2500}
+            particleCount={150}
+            width={1200}
+            colors={['#ffd700', '#ffb347', '#ff6b6b', '#4ecdc4', '#45b7d1']}
+          />
+        )}
+      </div>
+      
+      {/* Animated background elements */}
+      <motion.div 
+        className="absolute -top-40 -right-40 w-96 h-96 rounded-full bg-gradient-to-br from-green-500/20 to-emerald-500/10 blur-3xl"
+        animate={{ 
+          scale: [1, 1.2, 1],
+          opacity: [0.3, 0.5, 0.3],
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      <motion.div 
+        className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-gradient-to-br from-primary/20 to-blue-500/10 blur-3xl"
+        animate={{ 
+          scale: [1.2, 1, 1.2],
+          opacity: [0.5, 0.3, 0.5],
+        }}
+        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      
       <div className="absolute inset-0 bg-grid-pattern opacity-5" />
       <motion.div 
         className="absolute top-2 right-2 sm:top-3 sm:right-3 md:top-4 md:right-4 z-20"
@@ -44,40 +102,57 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
         <ThemeToggle />
       </motion.div>
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5, type: "spring" }}
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        transition={{ duration: 0.6, type: "spring", bounce: 0.3 }}
         className="relative z-10 w-full max-w-[95%] sm:max-w-lg md:max-w-xl lg:max-w-2xl"
       >
-        <Card className="w-full shadow-lg sm:shadow-xl border border-border sm:border-2">
-          <CardHeader className="text-center p-4 sm:p-5 md:p-6">
+        <Card className="w-full shadow-2xl sm:shadow-2xl border border-border/50 sm:border-2 backdrop-blur-sm bg-card/95 overflow-hidden">
+          {/* Shimmer effect */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
+          
+          <CardHeader className="text-center p-4 sm:p-5 md:p-6 relative">
             <motion.div 
-              className="mx-auto w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 flex items-center justify-center mb-3 sm:mb-4 shadow-lg"
-              initial={{ scale: 0, rotate: -180 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ duration: 0.6, type: "spring", delay: 0.2 }}
+              className="mx-auto w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full bg-gradient-to-br from-green-500 via-emerald-500 to-teal-500 flex items-center justify-center mb-4 sm:mb-5 shadow-xl shadow-green-500/30 relative"
+              variants={celebrateIn}
+              initial="hidden"
+              animate="visible"
             >
-              <CheckCircle size={28} className="sm:hidden text-white" weight="fill" />
-              <CheckCircle size={32} className="hidden sm:block md:hidden text-white" weight="fill" />
-              <CheckCircle size={40} className="hidden md:block text-white" weight="fill" />
+              {/* Pulse rings */}
+              <motion.div
+                className="absolute inset-0 rounded-full bg-green-500/30"
+                animate={{ scale: [1, 1.5, 1], opacity: [0.5, 0, 0.5] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
+              />
+              <motion.div
+                className="absolute inset-0 rounded-full bg-green-500/20"
+                animate={{ scale: [1, 1.8, 1], opacity: [0.3, 0, 0.3] }}
+                transition={{ duration: 2, repeat: Infinity, delay: 0.8 }}
+              />
+              <CheckCircle size={32} className="sm:hidden text-white relative z-10" weight="fill" />
+              <CheckCircle size={40} className="hidden sm:block md:hidden text-white relative z-10" weight="fill" />
+              <CheckCircle size={48} className="hidden md:block text-white relative z-10" weight="fill" />
             </motion.div>
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <CardTitle className="text-2xl sm:text-3xl mb-1.5 sm:mb-2">Task Complete!</CardTitle>
-              <CardDescription className="text-sm sm:text-base">{gameName}</CardDescription>
+              <CardTitle className="text-2xl sm:text-3xl md:text-4xl mb-1.5 sm:mb-2 font-bold">Task Complete!</CardTitle>
+              <CardDescription className="text-sm sm:text-base md:text-lg">{gameName}</CardDescription>
             </motion.div>
           </CardHeader>
           <CardContent className="flex flex-col gap-4 sm:gap-5 md:gap-6 p-4 sm:p-5 md:p-6">
             <motion.div 
               className="flex justify-center"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              initial={{ opacity: 0, scale: 0.5, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ delay: 0.4, type: 'spring', bounce: 0.4 }}
             >
-              <Badge className={badge.className}>{badge.label}</Badge>
+              <Badge className={`${badge.className} px-4 py-2 text-sm sm:text-base flex items-center gap-2`}>
+                <BadgeIcon size={18} weight="fill" />
+                {badge.label}
+              </Badge>
             </motion.div>
 
             {/* Custom message for Digit Span and similar tests */}
@@ -356,14 +431,19 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: summary.errorCount !== undefined ? 0.9 : 0.8 }}
             >
-              <Button 
-                onClick={onContinue} 
-                size="lg" 
-                className="w-full gap-2 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-lg group"
+              <motion.div
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
               >
-                Return to Dashboard
-                <ArrowRight size={20} weight="duotone" className="group-hover:translate-x-1 transition-transform" />
-              </Button>
+                <Button 
+                  onClick={onContinue} 
+                  size="lg" 
+                  className="w-full gap-2 bg-gradient-to-r from-primary to-blue-600 hover:from-primary/90 hover:to-blue-600/90 shadow-xl shadow-primary/25 hover:shadow-2xl hover:shadow-primary/30 group h-12 sm:h-14 text-base sm:text-lg font-semibold transition-all"
+                >
+                  Return to Dashboard
+                  <ArrowRight size={22} weight="bold" className="group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </motion.div>
             </motion.div>
           </CardContent>
         </Card>
