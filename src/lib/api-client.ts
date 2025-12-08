@@ -148,6 +148,104 @@ export const adminAPI = {
   },
 };
 
+// AI Chat API
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export const aiAPI = {
+  async chat(message: string, history: ChatMessage[] = []) {
+    const data = await apiRequest<{ response: string; suggestions: string[] }>('/ai/chat', {
+      method: 'POST',
+      body: JSON.stringify({ message, history }),
+    });
+    return data;
+  },
+
+  // Streaming chat with Server-Sent Events
+  async chatStream(
+    message: string, 
+    history: ChatMessage[] = [],
+    onChunk: (chunk: string) => void,
+    onDone: (suggestions: string[]) => void,
+    onError: (error: string) => void
+  ): Promise<void> {
+    const token = getToken();
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    };
+
+    const response = await fetch(`${API_BASE_URL}/ai/chat/stream`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ message, history }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Network error' }));
+      throw new Error(error.error || `HTTP ${response.status}`);
+    }
+
+    if (!response.body) {
+      throw new Error('No response body');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let suggestions: string[] = [];
+
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            const data = line.slice(6);
+            
+            try {
+              const parsed = JSON.parse(data);
+              
+              if (parsed.type === 'chunk' && parsed.content) {
+                onChunk(parsed.content);
+              } else if (parsed.type === 'suggestions' && parsed.suggestions) {
+                suggestions = parsed.suggestions;
+              } else if (parsed.type === 'done') {
+                onDone(suggestions);
+              } else if (parsed.type === 'error') {
+                onError(parsed.error || 'Unknown error');
+              }
+            } catch (e) {
+              // Skip invalid JSON
+              continue;
+            }
+          }
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
+  },
+
+  async getSuggestions() {
+    const data = await apiRequest<{ suggestions: string[] }>('/ai/suggestions');
+    return data.suggestions;
+  },
+
+  async checkHealth() {
+    const data = await apiRequest<{ status: string; service: string }>('/ai/health');
+    return data;
+  },
+};
+
 // Health check
 export async function checkHealth() {
   try {

@@ -11,6 +11,7 @@ import { seedDatabase } from './utils/seed';
 import authRoutes from './routes/auth';
 import resultsRoutes from './routes/results';
 import adminRoutes from './routes/admin';
+import aiRoutes from './routes/ai';
 
 // Load environment variables
 dotenv.config();
@@ -43,6 +44,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/results', resultsRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/ai', aiRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -97,6 +99,9 @@ async function startServer() {
       console.log(`   GET  /api/admin/users`);
       console.log(`   GET  /api/admin/results`);
       console.log(`   GET  /api/admin/stats`);
+      console.log(`   POST /api/ai/chat`);
+      console.log(`   GET  /api/ai/suggestions`);
+      console.log(`   GET  /api/ai/health`);
       console.log('');
     });
   } catch (error) {

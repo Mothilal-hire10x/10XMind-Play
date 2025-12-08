@@ -20,6 +20,7 @@ import { DichoticListeningTest } from '@/components/games/DichoticListeningTest'
 import { getGameById } from '@/lib/games'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
+import { TenXBot } from '@/components/TenXBot'
 
 type Screen = 'dashboard' | 'instructions' | 'game' | 'results' | 'view-results'
 
@@ -147,6 +148,7 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <AppContent />
+        <TenXBot />
       </AuthProvider>
     </ThemeProvider>
   )
