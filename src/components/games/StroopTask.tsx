@@ -144,6 +144,10 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
       const incongruentErrors = incongruentTrials.filter(r => !r.correct).length
       const totalErrors = TOTAL_TRIALS - totalCorrect
       
+      // Calculate congruent and incongruent correct counts
+      const congruentCorrectCount = congruentTrials.filter(r => r.correct).length
+      const incongruentCorrectCount = incongruentTrials.filter(r => r.correct).length
+      
       onComplete(results, {
         score: totalCorrect,
         accuracy: (totalCorrect / TOTAL_TRIALS) * 100,
@@ -159,8 +163,8 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
           totalErrors,
           congruentTrials: congruentTrials.length,
           incongruentTrials: incongruentTrials.length,
-          congruentCorrect: congruentTrials.filter(r => r.correct).length,
-          incongruentCorrect: incongruentTrials.filter(r => r.correct).length,
+          congruentCorrect: congruentCorrectCount,
+          incongruentCorrect: incongruentCorrectCount,
           timeoutRate: (totalTimeout / TOTAL_TRIALS) * 100
         }
       })
@@ -631,7 +635,7 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
           <p className="text-center text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4 px-2">
             Press the key for the <strong>ink color</strong>, not the word <span className="hidden sm:inline">(or click the buttons below)</span>
           </p>
-          <div className="grid grid-cols-4 gap-2 sm:gap-2.5 md:gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5 md:gap-3">
             {Object.entries(COLOR_KEYS).map(([key, color]) => (
               <motion.div
                 key={key}
@@ -642,12 +646,12 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
                 <button
                   onClick={() => handleButtonClick(color)}
                   disabled={!stimulus || showFixation || !!feedback}
-                  className="w-full p-2 sm:p-3 md:p-4 bg-gradient-to-br from-card to-muted/50 rounded-lg border border-border/50 shadow-sm hover:shadow-md hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm disabled:hover:border-border/50 active:scale-95"
+                  className="w-full p-2 sm:p-3 md:p-4 bg-white dark:bg-gray-800 rounded-lg border-2 border-gray-300 dark:border-gray-600 shadow-sm hover:shadow-md hover:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:shadow-sm disabled:hover:border-gray-300 dark:disabled:hover:border-gray-600 active:scale-95"
                 >
-                  <kbd className="block text-lg sm:text-xl md:text-2xl font-mono font-bold mb-1 sm:mb-1.5 md:mb-2 pointer-events-none" style={{ color: COLOR_VALUES[color] }}>
+                  <kbd className="block text-lg sm:text-xl md:text-2xl font-mono font-bold mb-1 sm:mb-1.5 md:mb-2 pointer-events-none text-white">
                     {key.toUpperCase()}
                   </kbd>
-                  <span className="text-[10px] sm:text-xs text-muted-foreground font-medium pointer-events-none">{color}</span>
+                  <span className="text-[10px] sm:text-xs text-white font-medium pointer-events-none">{color}</span>
                 </button>
               </motion.div>
             ))}

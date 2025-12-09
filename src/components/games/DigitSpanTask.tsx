@@ -259,10 +259,8 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
       status: trial.correct ? 1 : 2
     }))
 
-    // Calculate base score from max span and add 10% bonus for total correct sequences
-    const baseScore = finalMaxSpan
-    const correctSequenceBonus = Math.round(totalCorrect * 0.1 * 10) / 10 // 10% per correct sequence
-    const totalScore = baseScore + correctSequenceBonus
+    // Calculate score from max span (no bonus)
+    const totalScore = finalMaxSpan
 
     const summary: GameSummary = {
       score: totalScore,
@@ -275,8 +273,7 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
         maxSpan: finalMaxSpan,
         mode: selectedMode,
         correctSequences: totalCorrect,
-        correctSequenceBonus: correctSequenceBonus,
-        customMessage: `Max Span: ${finalMaxSpan} | Total Correct: ${totalCorrect} (+${correctSequenceBonus.toFixed(1)} bonus) | Final Score: ${totalScore.toFixed(1)}`
+        customMessage: `Max Span: ${finalMaxSpan} | Total Correct: ${totalCorrect} | Final Score: ${totalScore}`
       }
     }
 

@@ -48,6 +48,25 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
     mirrorErrors: number
     differentFigureErrors: number
   }>>([])
+  
+  // Responsive sizing for figures
+  const [figureSize, setFigureSize] = useState({ target: 180, option: 160 })
+  
+  useEffect(() => {
+    const updateSize = () => {
+      const width = window.innerWidth
+      if (width < 640) {
+        setFigureSize({ target: 80, option: 60 })
+      } else if (width < 768) {
+        setFigureSize({ target: 120, option: 100 })
+      } else {
+        setFigureSize({ target: 180, option: 160 })
+      }
+    }
+    updateSize()
+    window.addEventListener('resize', updateSize)
+    return () => window.removeEventListener('resize', updateSize)
+  }, [])
 
   const figures = [
     'fig1', 'fig2', 'fig3', 'fig4', 'fig5', 'fig6', 'fig7', 'fig8',
@@ -59,12 +78,6 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
   const generateQuestion = useCallback((): Question => {
     const targetFigure = figures[Math.floor(Math.random() * figures.length)]
     const targetRotation = rotations[Math.floor(Math.random() * rotations.length)]
-    
-    // Get a different figure for the "different figure" option
-    let differentFigure = figures[Math.floor(Math.random() * figures.length)]
-    while (differentFigure === targetFigure) {
-      differentFigure = figures[Math.floor(Math.random() * figures.length)]
-    }
 
     // Create options array
     const options = [
@@ -83,7 +96,7 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
         isDifferent: false,
         isCorrect: true
       },
-      // 1 mirror image
+      // 2 mirror images (incorrect)
       {
         figure: targetFigure,
         rotation: rotations[Math.floor(Math.random() * rotations.length)],
@@ -91,12 +104,11 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
         isDifferent: false,
         isCorrect: false
       },
-      // 1 completely different figure
       {
-        figure: differentFigure,
+        figure: targetFigure,
         rotation: rotations[Math.floor(Math.random() * rotations.length)],
-        isMirror: false,
-        isDifferent: true,
+        isMirror: true,
+        isDifferent: false,
         isCorrect: false
       }
     ]
@@ -239,153 +251,111 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
       if (newSet.has(index)) {
         newSet.delete(index)
       } else {
-        newSet.add(index)
+        // Limit to maximum 2 selections
+        if (newSet.size < 2) {
+          newSet.add(index)
+        }
       }
       return newSet
     })
   }
 
+  // Render 3D isometric block figures (helper function to draw a cube)
+  const drawCube = (x: number, y: number, scale: number = 1) => {
+    const w = 20 * scale  // cube width
+    const h = 20 * scale  // cube height
+    const d = 12 * scale  // depth offset
+    
+    return (
+      <g key={`${x}-${y}`}>
+        {/* Top face */}
+        <path 
+          d={`M${x},${y} L${x + w},${y - d} L${x + w + w},${y} L${x + w},${y + d} Z`} 
+          fill="#4A5568" 
+          stroke="#2D3748" 
+          strokeWidth="0.5"
+        />
+        {/* Left face */}
+        <path 
+          d={`M${x},${y} L${x + w},${y + d} L${x + w},${y + d + h} L${x},${y + h} Z`} 
+          fill="#2D3748" 
+          stroke="#1A202C" 
+          strokeWidth="0.5"
+        />
+        {/* Right face */}
+        <path 
+          d={`M${x + w},${y + d} L${x + w + w},${y} L${x + w + w},${y + h} L${x + w},${y + d + h} Z`} 
+          fill="#1A202C" 
+          stroke="#000" 
+          strokeWidth="0.5"
+        />
+      </g>
+    )
+  }
+
   // Render 3D block figures
   const renderShape = (figType: string, rotation: number, isMirror: boolean, size: number = 150) => {
-    const figureShapes: Record<string, React.ReactNode> = {
-      fig1: (
-        <g>
-          <path d="M30,50 L50,40 L50,80 L30,90 Z" fill="#000" />
-          <path d="M50,40 L70,50 L70,90 L50,80 Z" fill="#000" opacity="0.7" />
-          <path d="M30,50 L50,40 L70,50 L50,60 Z" fill="#000" opacity="0.9" />
-          <path d="M50,20 L70,10 L70,50 L50,40 Z" fill="#000" opacity="0.7" />
-          <path d="M30,30 L50,20 L50,40 L30,50 Z" fill="#000" />
-          <path d="M30,30 L50,20 L70,10 L50,0 Z" fill="#000" opacity="0.9" />
-        </g>
-      ),
-      fig2: (
-        <g>
-          <path d="M40,60 L60,50 L60,85 L40,95 Z" fill="#000" />
-          <path d="M60,50 L80,60 L80,95 L60,85 Z" fill="#000" opacity="0.7" />
-          <path d="M40,60 L60,50 L80,60 L60,70 Z" fill="#000" opacity="0.9" />
-          <path d="M20,45 L40,35 L40,60 L20,70 Z" fill="#000" />
-          <path d="M40,35 L60,25 L60,50 L40,60 Z" fill="#000" opacity="0.7" />
-        </g>
-      ),
-      fig3: (
-        <g>
-          <path d="M35,70 L55,60 L55,90 L35,100 Z" fill="#000" />
-          <path d="M55,60 L75,50 L75,80 L55,90 Z" fill="#000" opacity="0.7" />
-          <path d="M55,30 L75,20 L75,50 L55,60 Z" fill="#000" opacity="0.7" />
-          <path d="M35,40 L55,30 L55,60 L35,70 Z" fill="#000" />
-          <path d="M35,40 L55,30 L75,20 L55,10 Z" fill="#000" opacity="0.9" />
-        </g>
-      ),
-      fig4: (
-        <g>
-          <path d="M25,65 L45,55 L45,85 L25,95 Z" fill="#000" />
-          <path d="M45,55 L65,45 L65,75 L45,85 Z" fill="#000" opacity="0.7" />
-          <path d="M65,45 L85,35 L85,65 L65,75 Z" fill="#000" opacity="0.7" />
-          <path d="M45,25 L65,15 L65,45 L45,55 Z" fill="#000" opacity="0.7" />
-          <path d="M25,35 L45,25 L45,55 L25,65 Z" fill="#000" />
-        </g>
-      ),
-      fig5: (
-        <g>
-          <path d="M30,55 L50,45 L50,75 L30,85 Z" fill="#000" />
-          <path d="M50,45 L70,35 L70,65 L50,75 Z" fill="#000" opacity="0.7" />
-          <path d="M50,15 L70,5 L70,35 L50,45 Z" fill="#000" opacity="0.7" />
-          <path d="M70,35 L90,25 L90,55 L70,65 Z" fill="#000" opacity="0.7" />
-        </g>
-      ),
-      fig6: (
-        <g>
-          <path d="M40,65 L60,55 L60,80 L40,90 Z" fill="#000" />
-          <path d="M60,55 L80,45 L80,70 L60,80 Z" fill="#000" opacity="0.7" />
-          <path d="M40,40 L60,30 L60,55 L40,65 Z" fill="#000" />
-          <path d="M20,50 L40,40 L40,65 L20,75 Z" fill="#000" opacity="0.8" />
-        </g>
-      ),
-      fig7: (
-        <g>
-          <path d="M35,60 L55,50 L55,80 L35,90 Z" fill="#000" />
-          <path d="M55,50 L75,40 L75,70 L55,80 Z" fill="#000" opacity="0.7" />
-          <path d="M55,20 L75,10 L75,40 L55,50 Z" fill="#000" opacity="0.7" />
-          <path d="M35,30 L55,20 L55,50 L35,60 Z" fill="#000" />
-          <path d="M15,40 L35,30 L35,60 L15,70 Z" fill="#000" opacity="0.8" />
-        </g>
-      ),
-      fig8: (
-        <g>
-          <path d="M45,70 L65,60 L65,85 L45,95 Z" fill="#000" />
-          <path d="M25,55 L45,45 L45,70 L25,80 Z" fill="#000" />
-          <path d="M45,45 L65,35 L65,60 L45,70 Z" fill="#000" opacity="0.7" />
-          <path d="M65,35 L85,25 L85,50 L65,60 Z" fill="#000" opacity="0.7" />
-        </g>
-      ),
-      fig9: (
-        <g>
-          <path d="M30,60 L50,50 L50,80 L30,90 Z" fill="#000" />
-          <path d="M50,50 L70,40 L70,70 L50,80 Z" fill="#000" opacity="0.7" />
-          <path d="M70,40 L90,30 L90,60 L70,70 Z" fill="#000" opacity="0.7" />
-          <path d="M50,20 L70,10 L70,40 L50,50 Z" fill="#000" opacity="0.7" />
-        </g>
-      ),
-      fig10: (
-        <g>
-          <path d="M40,70 L60,60 L60,90 L40,100 Z" fill="#000" />
-          <path d="M60,60 L80,50 L80,80 L60,90 Z" fill="#000" opacity="0.7" />
-          <path d="M40,45 L60,35 L60,60 L40,70 Z" fill="#000" />
-          <path d="M60,35 L80,25 L80,50 L60,60 Z" fill="#000" opacity="0.7" />
-          <path d="M20,55 L40,45 L40,70 L20,80 Z" fill="#000" opacity="0.8" />
-        </g>
-      ),
-      fig11: (
-        <g>
-          <path d="M50,60 L70,50 L70,75 L50,85 Z" fill="#000" />
-          <path d="M30,50 L50,40 L50,60 L30,70 Z" fill="#000" />
-          <path d="M50,40 L70,30 L70,50 L50,60 Z" fill="#000" opacity="0.7" />
-          <path d="M70,30 L90,20 L90,50 L70,60 Z" fill="#000" opacity="0.7" />
-        </g>
-      ),
-      fig12: (
-        <g>
-          <path d="M35,65 L55,55 L55,85 L35,95 Z" fill="#000" />
-          <path d="M55,55 L75,45 L75,75 L55,85 Z" fill="#000" opacity="0.7" />
-          <path d="M75,45 L95,35 L95,65 L75,75 Z" fill="#000" opacity="0.7" />
-          <path d="M35,40 L55,30 L55,55 L35,65 Z" fill="#000" />
-        </g>
-      ),
-      fig13: (
-        <g>
-          <path d="M45,55 L65,45 L65,75 L45,85 Z" fill="#000" />
-          <path d="M25,45 L45,35 L45,55 L25,65 Z" fill="#000" />
-          <path d="M45,35 L65,25 L65,45 L45,55 Z" fill="#000" opacity="0.7" />
-          <path d="M65,25 L85,15 L85,45 L65,55 Z" fill="#000" opacity="0.7" />
-          <path d="M65,45 L85,35 L85,65 L65,75 Z" fill="#000" opacity="0.7" />
-        </g>
-      ),
-      fig14: (
-        <g>
-          <path d="M30,70 L50,60 L50,85 L30,95 Z" fill="#000" />
-          <path d="M50,60 L70,50 L70,75 L50,85 Z" fill="#000" opacity="0.7" />
-          <path d="M30,45 L50,35 L50,60 L30,70 Z" fill="#000" />
-          <path d="M50,35 L70,25 L70,50 L50,60 Z" fill="#000" opacity="0.7" />
-        </g>
-      ),
-      fig15: (
-        <g>
-          <path d="M40,60 L60,50 L60,80 L40,90 Z" fill="#000" />
-          <path d="M60,50 L80,40 L80,70 L60,80 Z" fill="#000" opacity="0.7" />
-          <path d="M20,50 L40,40 L40,60 L20,70 Z" fill="#000" />
-          <path d="M40,40 L60,30 L60,50 L40,60 Z" fill="#000" opacity="0.7" />
-          <path d="M60,30 L80,20 L80,40 L60,50 Z" fill="#000" opacity="0.7" />
-        </g>
-      ),
-      fig16: (
-        <g>
-          <path d="M35,55 L55,45 L55,75 L35,85 Z" fill="#000" />
-          <path d="M55,45 L75,35 L75,65 L55,75 Z" fill="#000" opacity="0.7" />
-          <path d="M55,15 L75,5 L75,35 L55,45 Z" fill="#000" opacity="0.7" />
-          <path d="M35,30 L55,20 L55,45 L35,55 Z" fill="#000" />
-        </g>
-      )
-    }
+    // Define figures as arrays of [x, y] cube positions - simplified with 3-4 cubes each
+    const figureShapes: Record<string, Array<[number, number]>> = {
+      // Simple L-shape (3 cubes)
+      fig1: [[0, 20], [0, 0], [20, 0]],
+      
+      // Simple corner (3 cubes)
+      fig2: [[0, 0], [20, 0], [20, 20]],
+      
+      // Line with one up (3 cubes)
+      fig3: [[0, 20], [0, 0], [20, 20]],
+      
+      // Backwards L (3 cubes)
+      fig4: [[0, 0], [20, 0], [0, 20]],
+      
+      // T-shape (4 cubes)
+      fig5: [[0, 20], [20, 20], [40, 20], [20, 0]],
+      
+      // Small zigzag (3 cubes)
+      fig6: [[0, 0], [20, 0], [20, 20]],
+      
+      // L pointing down (3 cubes)
+      fig7: [[0, 0], [0, 20], [20, 20]],
+      
+      // Angle (3 cubes)
+      fig8: [[20, 0], [0, 20], [20, 20]],
+      
+      // Small staircase (4 cubes)
+      fig9: [[0, 20], [20, 20], [20, 0], [40, 0]],
+      
+      // Corner shape (4 cubes)
+      fig10: [[0, 0], [20, 0], [20, 20], [40, 20]],
+      
+      // Extended L (4 cubes)
+      fig11: [[0, 0], [0, 20], [0, 40], [20, 0]],
+      
+      // Z-pattern (4 cubes)
+      fig12: [[0, 0], [20, 0], [20, 20], [40, 20]],
+      
+      // Wide L (4 cubes)
+      fig13: [[0, 20], [20, 20], [40, 20], [0, 0]],
+      
+      // Step pattern (4 cubes)
+      fig14: [[0, 20], [20, 20], [20, 0], [40, 20]],
+      
+      // Long corner (4 cubes)
+      fig15: [[0, 0], [20, 0], [40, 0], [0, 20]],
+      
+      // Diagonal step (4 cubes)
+      fig16: [[0, 40], [20, 20], [40, 0], [20, 0]]
+    }    
+    const cubePositions = figureShapes[figType] || figureShapes.fig1
+    
+    // Calculate bounds for centering
+    const xs = cubePositions.map(p => p[0])
+    const ys = cubePositions.map(p => p[1])
+    const minX = Math.min(...xs)
+    const maxX = Math.max(...xs)
+    const minY = Math.min(...ys)
+    const maxY = Math.max(...ys)
+    const centerX = (minX + maxX) / 2 + 20
+    const centerY = (minY + maxY) / 2 + 20
 
     return (
       <svg
@@ -395,10 +365,12 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
         className="inline-block"
         style={{
           transform: `rotate(${rotation}deg) scaleX(${isMirror ? -1 : 1})`,
-          filter: 'drop-shadow(1px 2px 4px rgba(0,0,0,0.2))'
+          filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.3))'
         }}
       >
-        {figureShapes[figType] || figureShapes.fig1}
+        <g transform={`translate(${60 - centerX}, ${60 - centerY})`}>
+          {cubePositions.map(([x, y]) => drawCube(x, y, 1))}
+        </g>
       </svg>
     )
   }
@@ -632,117 +604,124 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
   const maxQuestions = gamePhase === 'practice' ? PRACTICE_QUESTIONS : TOTAL_QUESTIONS
 
   return (
-    <div className="min-h-screen bg-white flex flex-col">
-      <div className="p-6 border-b-2 border-gray-200 bg-white flex items-center justify-between">
-        <div className="flex items-center gap-4">
+    <div className="min-h-screen bg-white dark:bg-background flex flex-col">
+      <div className="p-3 sm:p-4 md:p-6 border-b-2 border-gray-200 dark:border-border bg-white dark:bg-background flex items-center justify-between">
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-wrap flex-1">
           {gamePhase === 'practice' && (
-            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 gap-2 px-4 py-2">
-              <span className="text-lg font-bold">Practice Mode</span>
+            <Badge className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1 sm:py-2">
+              <span className="text-xs sm:text-sm md:text-lg font-bold">Practice</span>
             </Badge>
           )}
           {gamePhase === 'test' && (
-            <Badge variant="outline" className="gap-2 px-4 py-2 border-gray-300">
-              <Cube size={20} className="text-blue-600" />
+            <Badge variant="outline" className="gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1 sm:py-2 border-gray-300 dark:border-border">
+              <Cube size={16} className="sm:hidden text-blue-600" />
+              <Cube size={20} className="hidden sm:block text-blue-600" />
               <div className="flex flex-col items-start">
-                <span className="text-xs text-gray-600">Mental Rotation Test</span>
-                <span className="text-xl font-bold text-gray-900">Question {currentQuestion + 1}/{maxQuestions}</span>
+                <span className="text-[10px] sm:text-xs text-gray-600 dark:text-muted-foreground hidden sm:block">Mental Rotation</span>
+                <span className="text-sm sm:text-lg md:text-xl font-bold text-gray-900 dark:text-foreground">Q{currentQuestion + 1}/{maxQuestions}</span>
               </div>
             </Badge>
           )}
-          <div className="w-64">
-            <Progress value={((currentQuestion) / maxQuestions) * 100} className="h-2" />
+          <div className="w-20 sm:w-32 md:w-64">
+            <Progress value={((currentQuestion) / maxQuestions) * 100} className="h-1.5 sm:h-2" />
           </div>
         </div>
-        <Button variant="ghost" size="icon" onClick={onExit}>
-          <X size={24} />
+        <Button variant="ghost" size="icon" onClick={onExit} className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex-shrink-0">
+          <X size={18} className="sm:hidden" />
+          <X size={20} className="hidden sm:block md:hidden" />
+          <X size={24} className="hidden md:block" />
         </Button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center p-2 sm:p-4 md:p-8 overflow-auto">
         {questionData && (
           <div className="max-w-6xl w-full">
-            <Card className="p-8 bg-white border-2 border-gray-200 shadow-lg">
-              <div className="mb-6 text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                  Select the 2 correct rotations of the target figure
+            <Card className="p-3 sm:p-4 md:p-8 bg-white dark:bg-card border-2 border-gray-200 dark:border-border shadow-lg">
+              <div className="mb-3 sm:mb-4 md:mb-6 text-center">
+                <h2 className="text-sm sm:text-lg md:text-2xl font-bold text-gray-900 dark:text-foreground mb-1 sm:mb-2">
+                  Select the 2 correct rotations of the target
                 </h2>
-                <p className="text-gray-600">
-                  Choose exactly 2 options that match the target (avoid mirrors and different figures)
+                <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-muted-foreground hidden sm:block">
+                  Choose exactly 2 options that match the target (2 are correct rotations, 2 are mirror images)
                 </p>
               </div>
 
-              <div className="flex gap-8 items-start justify-center">
+              <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 md:gap-8 items-center lg:items-start justify-center">
                 {/* Target Figure */}
-                <div className="flex flex-col items-center">
-                  <div className="bg-gray-100 border-4 border-blue-500 rounded-lg p-8 mb-3">
-                    <div className="text-center mb-2">
-                      <Badge className="bg-blue-600 text-white mb-3">TARGET</Badge>
+                <div className="flex flex-col items-center flex-shrink-0">
+                  <div className="bg-gray-100 dark:bg-muted border-2 sm:border-4 border-blue-500 rounded-lg p-3 sm:p-4 md:p-8 mb-2 sm:mb-3">
+                    <div className="text-center mb-1 sm:mb-2">
+                      <Badge className="bg-blue-600 text-white mb-1 sm:mb-3 text-xs sm:text-sm">TARGET</Badge>
                     </div>
-                    {renderShape(questionData.target, questionData.targetRotation, false, 180)}
+                    <div className="w-[80px] sm:w-[120px] md:w-[180px] h-[80px] sm:h-[120px] md:h-[180px] flex items-center justify-center">
+                      {renderShape(questionData.target, questionData.targetRotation, false, figureSize.target)}
+                    </div>
                   </div>
-                  <p className="text-sm font-semibold text-gray-700">Example</p>
+                  <p className="text-xs sm:text-sm font-semibold text-gray-700 dark:text-muted-foreground">Target</p>
                 </div>
 
                 {/* Options Grid */}
-                <div className="flex-1">
-                  <div className="grid grid-cols-2 gap-6">
+                <div className="flex-1 w-full">
+                  <div className="grid grid-cols-2 gap-2 sm:gap-4 md:gap-6">
                     {questionData.options.map((option, idx) => {
                       const isSelected = selectedOptions.has(idx)
                       const isCorrect = option.isCorrect
                       const showResult = showFeedback
 
-                      let borderColor = 'border-gray-300'
-                      let bgColor = 'bg-white'
+                      let borderColor = 'border-gray-300 dark:border-border'
+                      let bgColor = 'bg-white dark:bg-card'
                       
                       if (showResult) {
                         if (isCorrect && isSelected) {
                           borderColor = 'border-green-500'
-                          bgColor = 'bg-green-50'
+                          bgColor = 'bg-green-50 dark:bg-green-900/20'
                         } else if (isCorrect && !isSelected) {
                           borderColor = 'border-orange-500'
-                          bgColor = 'bg-orange-50'
+                          bgColor = 'bg-orange-50 dark:bg-orange-900/20'
                         } else if (!isCorrect && isSelected) {
                           borderColor = 'border-red-500'
-                          bgColor = 'bg-red-50'
+                          bgColor = 'bg-red-50 dark:bg-red-900/20'
                         }
                       } else if (isSelected) {
                         borderColor = 'border-blue-500'
-                        bgColor = 'bg-blue-50'
+                        bgColor = 'bg-blue-50 dark:bg-blue-900/20'
                       }
 
                       return (
                         <div
                           key={idx}
-                          className={`${bgColor} border-2 ${borderColor} rounded-lg p-6 transition-all cursor-pointer hover:shadow-md relative`}
+                          className={`${bgColor} border-2 ${borderColor} rounded-lg p-2 sm:p-4 md:p-6 transition-all cursor-pointer hover:shadow-md relative`}
                           onClick={() => !showFeedback && toggleOption(idx)}
                         >
-                          <div className="absolute top-3 left-3 flex items-center gap-2">
+                          <div className="absolute top-1 sm:top-2 md:top-3 left-1 sm:left-2 md:left-3 flex items-center gap-1 sm:gap-2">
                             <Checkbox
                               checked={isSelected}
                               onCheckedChange={() => !showFeedback && toggleOption(idx)}
-                              className="border-gray-400"
+                              className="border-gray-400 h-3 w-3 sm:h-4 sm:w-4"
                             />
-                            <span className="text-sm font-semibold text-gray-700">Option {idx + 1}</span>
+                            <span className="text-[10px] sm:text-xs md:text-sm font-semibold text-gray-700 dark:text-muted-foreground">{idx + 1}</span>
                           </div>
                           
                           {showResult && (
-                            <div className="absolute top-3 right-3">
+                            <div className="absolute top-1 sm:top-2 md:top-3 right-1 sm:right-2 md:right-3">
                               {isCorrect && isSelected && (
-                                <Badge className="bg-green-600 text-white">✓ Correct</Badge>
+                                <Badge className="bg-green-600 text-white text-[8px] sm:text-xs px-1 sm:px-2">✓</Badge>
                               )}
                               {isCorrect && !isSelected && (
-                                <Badge className="bg-orange-600 text-white">Missed</Badge>
+                                <Badge className="bg-orange-600 text-white text-[8px] sm:text-xs px-1 sm:px-2">Miss</Badge>
                               )}
                               {!isCorrect && isSelected && (
-                                <Badge className="bg-red-600 text-white">
-                                  ✗ {option.isMirror ? 'Mirror' : 'Different'}
+                                <Badge className="bg-red-600 text-white text-[8px] sm:text-xs px-1 sm:px-2">
+                                  ✗
                                 </Badge>
                               )}
                             </div>
                           )}
 
-                          <div className="flex justify-center mt-8">
-                            {renderShape(option.figure, option.rotation, option.isMirror, 160)}
+                          <div className="flex justify-center mt-5 sm:mt-6 md:mt-8">
+                            <div className="w-[60px] sm:w-[100px] md:w-[160px] h-[60px] sm:h-[100px] md:h-[160px] flex items-center justify-center">
+                              {renderShape(option.figure, option.rotation, option.isMirror, figureSize.option)}
+                            </div>
                           </div>
                         </div>
                       )
@@ -750,21 +729,21 @@ export function MentalRotationTest({ onComplete, onExit }: MentalRotationTestPro
                   </div>
 
                   {!showFeedback && (
-                    <div className="mt-6 flex justify-center">
+                    <div className="mt-3 sm:mt-4 md:mt-6 flex justify-center">
                       <Button
                         onClick={handleSubmit}
                         disabled={selectedOptions.size === 0}
                         size="lg"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 sm:px-6 md:px-8 py-2 sm:py-4 md:py-6 text-sm sm:text-base md:text-lg"
                       >
-                        Submit Answer ({selectedOptions.size}/2 selected)
+                        Submit ({selectedOptions.size}/2)
                       </Button>
                     </div>
                   )}
 
                   {showFeedback && gamePhase === 'practice' && (
-                    <div className="mt-6 text-center">
-                      <p className="text-gray-600">Moving to next question...</p>
+                    <div className="mt-3 sm:mt-4 md:mt-6 text-center">
+                      <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-muted-foreground">Moving to next question...</p>
                     </div>
                   )}
                 </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -20,6 +20,10 @@ interface Circle {
 }
 
 type GamePhase = 'instructions' | 'practice-a' | 'transition-a' | 'test-a' | 'transition-b' | 'practice-b' | 'test-b'
+
+// Base dimensions for circle generation (circles will be scaled based on container)
+const BASE_WIDTH = 1000
+const BASE_HEIGHT = 600
 
 export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
   const [gamePhase, setGamePhase] = useState<GamePhase>('instructions')
@@ -43,21 +47,42 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
   const [isComplete, setIsComplete] = useState(false)
   const [elapsedTime, setElapsedTime] = useState(0)
   const [results, setResults] = useState<TrialResult[]>([])
+  
+  // Container sizing
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerSize, setContainerSize] = useState({ width: BASE_WIDTH, height: BASE_HEIGHT })
+
+  // Handle container resize
+  useEffect(() => {
+    const updateSize = () => {
+      if (containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect()
+        setContainerSize({ width: rect.width, height: rect.height })
+      }
+    }
+    
+    updateSize()
+    window.addEventListener('resize', updateSize)
+    return () => window.removeEventListener('resize', updateSize)
+  }, [])
 
   const generateCircles = useCallback((partType: 'A' | 'B', isPractice: boolean = false) => {
     const count = isPractice ? 8 : 25
     const newCircles: Circle[] = []
-    const containerWidth = 1000
-    const containerHeight = 600
+    // Use base dimensions for generation, will be scaled on render
+    const containerWidth = BASE_WIDTH
+    const containerHeight = BASE_HEIGHT
     const minDistance = 80
+    // Account for circle size (max 64px) and padding
+    const margin = 80
 
     if (partType === 'A') {
       // TMT-A: Numbers
       for (let i = 1; i <= count; i++) {
         let x, y, attempts = 0
         do {
-          x = Math.random() * (containerWidth - 100) + 50
-          y = Math.random() * (containerHeight - 100) + 50
+          x = Math.random() * (containerWidth - margin * 2) + margin
+          y = Math.random() * (containerHeight - margin * 2) + margin
           attempts++
         } while (
           attempts < 100 &&
@@ -79,8 +104,8 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
       for (let i = 0; i < labels.length; i++) {
         let x, y, attempts = 0
         do {
-          x = Math.random() * (containerWidth - 100) + 50
-          y = Math.random() * (containerHeight - 100) + 50
+          x = Math.random() * (containerWidth - margin * 2) + margin
+          y = Math.random() * (containerHeight - margin * 2) + margin
           attempts++
         } while (
           attempts < 100 &&
@@ -581,56 +606,64 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col">
-      <div className="p-6 border-b border-border/50 backdrop-blur-sm bg-card/50 flex items-center justify-between">
-        <div className="flex items-center gap-4">
+      <div className="p-3 sm:p-4 md:p-6 border-b border-border/50 backdrop-blur-sm bg-card/50 flex items-center justify-between">
+        <div className="flex items-center gap-2 sm:gap-3 md:gap-4 flex-wrap">
           {(gamePhase === 'practice-a' || gamePhase === 'practice-b') && (
-            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 gap-2 px-4 py-2">
-              <Lightning size={20} weight="fill" />
-              <span className="text-lg font-bold">Practice Mode - Part {testPart}</span>
+            <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100 gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1 sm:py-2">
+              <Lightning size={16} className="sm:hidden" weight="fill" />
+              <Lightning size={20} className="hidden sm:block" weight="fill" />
+              <span className="text-xs sm:text-sm md:text-lg font-bold">Practice - Part {testPart}</span>
             </Badge>
           )}
           {(gamePhase === 'test-a' || gamePhase === 'test-b') && (
-            <Badge variant="outline" className="gap-2 px-4 py-2">
-              <Lightning size={20} weight="fill" className="text-primary" />
+            <Badge variant="outline" className="gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1 sm:py-2">
+              <Lightning size={16} className="sm:hidden text-primary" weight="fill" />
+              <Lightning size={20} className="hidden sm:block text-primary" weight="fill" />
               <div className="flex flex-col items-start">
-                <span className="text-xs text-muted-foreground">Test Part</span>
-                <span className="text-2xl font-bold text-foreground">TMT-{testPart}</span>
+                <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Test Part</span>
+                <span className="text-sm sm:text-lg md:text-2xl font-bold text-foreground">TMT-{testPart}</span>
               </div>
             </Badge>
           )}
-          <Badge variant="outline" className="gap-2 px-4 py-2">
-            <Timer size={20} weight="fill" />
+          <Badge variant="outline" className="gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1 sm:py-2">
+            <Timer size={16} className="sm:hidden" weight="fill" />
+            <Timer size={20} className="hidden sm:block" weight="fill" />
             <div className="flex flex-col items-start">
-              <span className="text-xs text-muted-foreground">Time</span>
-              <span className="text-xl font-bold text-foreground">
+              <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Time</span>
+              <span className="text-sm sm:text-lg md:text-xl font-bold text-foreground">
                 {startTime === 0 ? '0.0s' : (elapsedTime / 1000).toFixed(1) + 's'}
               </span>
             </div>
           </Badge>
-          <Badge variant="outline" className="gap-2 px-4 py-2">
+          <Badge variant="outline" className="gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1 sm:py-2">
             <div className="flex flex-col items-start">
-              <span className="text-xs text-muted-foreground">Progress</span>
-              <span className="text-xl font-bold text-primary">
+              <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Progress</span>
+              <span className="text-sm sm:text-lg md:text-xl font-bold text-primary">
                 {currentTarget + 1}/{circles.length}
               </span>
             </div>
           </Badge>
-          <Badge variant="outline" className="gap-2 px-4 py-2">
+          <Badge variant="outline" className="gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1 sm:py-2">
             <div className="flex flex-col items-start">
-              <span className="text-xs text-muted-foreground">Errors</span>
-              <span className="text-xl font-bold text-destructive">
-                {errors} ({currentTarget > 0 ? Math.round((errors / currentTarget) * 100) : 0}%)
+              <span className="text-[10px] sm:text-xs text-muted-foreground hidden sm:block">Errors</span>
+              <span className="text-sm sm:text-lg md:text-xl font-bold text-destructive">
+                {errors}
               </span>
             </div>
           </Badge>
         </div>
-        <Button variant="ghost" size="icon" onClick={onExit}>
-          <X size={24} />
+        <Button variant="ghost" size="icon" onClick={onExit} className="h-8 w-8 sm:h-9 sm:w-9 md:h-10 md:w-10 flex-shrink-0">
+          <X size={18} className="sm:hidden" />
+          <X size={20} className="hidden sm:block md:hidden" />
+          <X size={24} className="hidden md:block" />
         </Button>
       </div>
 
-      <div className="flex-1 flex items-center justify-center p-8">
-        <Card className="relative bg-card/80 backdrop-blur-sm border-2" style={{ width: 1000, height: 600 }}>
+      <div className="flex-1 flex items-center justify-center p-2 sm:p-4 md:p-8 overflow-hidden">
+        <Card 
+          ref={containerRef}
+          className="relative bg-card/80 backdrop-blur-sm border-2 w-full max-w-[1000px] aspect-[3/4] sm:aspect-[4/3] md:aspect-[5/3] overflow-hidden"
+        >
           <AnimatePresence>
             {isComplete && (
               <motion.div
@@ -638,32 +671,32 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
                 animate={{ scale: 1, opacity: 1 }}
                 className="absolute inset-0 flex items-center justify-center bg-success/10 rounded-lg z-10"
               >
-                <div className="text-center">
-                  <div className="text-6xl mb-4">✓</div>
+                <div className="text-center p-4">
+                  <div className="text-4xl sm:text-5xl md:text-6xl mb-2 sm:mb-4">✓</div>
                   {(gamePhase === 'practice-a' || gamePhase === 'practice-b') ? (
                     <>
-                      <div className="text-2xl font-bold text-success">
+                      <div className="text-lg sm:text-xl md:text-2xl font-bold text-success">
                         Practice Part {testPart} Complete!
                       </div>
-                      <div className="text-lg text-muted-foreground mt-2">
+                      <div className="text-sm sm:text-base md:text-lg text-muted-foreground mt-1 sm:mt-2">
                         Time: {(completionTime / 1000).toFixed(2)}s | Errors: {errors}
                       </div>
                     </>
                   ) : (
                     <>
-                      <div className="text-2xl font-bold text-success">
+                      <div className="text-lg sm:text-xl md:text-2xl font-bold text-success">
                         TMT-{testPart} Complete!
                       </div>
-                      <div className="text-lg text-muted-foreground mt-2">
+                      <div className="text-sm sm:text-base md:text-lg text-muted-foreground mt-1 sm:mt-2">
                         Time: {(completionTime / 1000).toFixed(2)}s | Errors: {errors}
                       </div>
                       {gamePhase === 'test-a' && (
-                        <div className="text-sm text-muted-foreground mt-4">
+                        <div className="text-xs sm:text-sm text-muted-foreground mt-2 sm:mt-4">
                           Transitioning to Part B...
                         </div>
                       )}
                       {gamePhase === 'test-b' && (
-                        <div className="text-sm text-muted-foreground mt-4">
+                        <div className="text-xs sm:text-sm text-muted-foreground mt-2 sm:mt-4">
                           Test complete! Calculating results...
                         </div>
                       )}
@@ -674,14 +707,14 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
             )}
           </AnimatePresence>
 
-          <div className="absolute top-4 left-4 text-sm text-muted-foreground">
+          <div className="absolute top-2 sm:top-4 left-2 sm:left-4 text-xs sm:text-sm text-muted-foreground max-w-[200px] sm:max-w-none">
             {(gamePhase === 'practice-a' || gamePhase === 'test-a')
-              ? 'Connect the numbers in order: 1 → 2 → 3 → ...'
-              : 'Alternate numbers and letters: 1 → A → 2 → B → ...'
+              ? 'Connect: 1 → 2 → 3 → ...'
+              : '1 → A → 2 → B → ...'
             }
             {startTime === 0 && (
-              <div className="text-primary font-semibold mt-1">
-                ⏱️ Timer starts on your first click!
+              <div className="text-primary font-semibold mt-1 text-[10px] sm:text-sm">
+                ⏱️ Timer starts on first click!
               </div>
             )}
           </div>
@@ -690,6 +723,14 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
             const isTarget = circle.id === currentTarget
             const isCompleted = circle.isClicked
             const isPrevious = circle.id < currentTarget
+            
+            // Scale circle position based on container size
+            const scaleX = containerSize.width / BASE_WIDTH
+            const scaleY = containerSize.height / BASE_HEIGHT
+            const scaledX = circle.x * scaleX
+            const scaledY = circle.y * scaleY
+            // Scale circle size based on container (smaller on mobile)
+            const circleSize = Math.max(32, Math.min(64, containerSize.width / 16))
 
             return (
               <motion.div
@@ -699,8 +740,9 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
                 transition={{ delay: index * 0.02 }}
                 style={{
                   position: 'absolute',
-                  left: circle.x,
-                  top: circle.y,
+                  left: scaledX,
+                  top: scaledY,
+                  transform: `translate(-50%, -50%)`,
                 }}
               >
                 <motion.button
@@ -708,8 +750,9 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
                   whileTap={!isCompleted ? { scale: 0.95 } : {}}
                   onClick={() => handleCircleClick(circle)}
                   disabled={isCompleted}
+                  style={{ width: circleSize, height: circleSize, fontSize: circleSize * 0.35 }}
                   className={`
-                    w-16 h-16 rounded-full border-3 font-bold text-lg
+                    rounded-full border-2 sm:border-3 font-bold
                     transition-all duration-200 relative
                     ${isCompleted 
                       ? 'bg-success border-success text-white cursor-default' 
@@ -724,18 +767,18 @@ export function TrailMakingTest({ onComplete, onExit }: TrailMakingTestProps) {
                     <svg
                       className="absolute pointer-events-none"
                       style={{
-                        left: 32,
-                        top: 32,
-                        width: Math.abs(circles[index - 1].x - circle.x) + 64,
-                        height: Math.abs(circles[index - 1].y - circle.y) + 64,
-                        transform: `translate(-32px, -32px)`,
+                        left: circleSize / 2,
+                        top: circleSize / 2,
+                        width: Math.abs((circles[index - 1].x * scaleX) - scaledX) + circleSize,
+                        height: Math.abs((circles[index - 1].y * scaleY) - scaledY) + circleSize,
+                        transform: `translate(-${circleSize / 2}px, -${circleSize / 2}px)`,
                       }}
                     >
                       <line
-                        x1={32}
-                        y1={32}
-                        x2={circles[index - 1].x - circle.x + 32}
-                        y2={circles[index - 1].y - circle.y + 32}
+                        x1={circleSize / 2}
+                        y1={circleSize / 2}
+                        x2={(circles[index - 1].x * scaleX) - scaledX + (circleSize / 2)}
+                        y2={(circles[index - 1].y * scaleY) - scaledY + (circleSize / 2)}
                         stroke="oklch(0.65 0.25 255)"
                         strokeWidth="2"
                         strokeDasharray="5,5"
