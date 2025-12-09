@@ -1,0 +1,25 @@
+# robots.txt for 10XMindPlay
+# https://10xmindplay.mothilal.xyz
+
+User-agent: *
+Allow: /
+
+# Disallow authentication pages from crawling
+Disallow: /api/
+Disallow: /admin/
+
+# Sitemap location
+Sitemap: https://10xmindplay.mothilal.xyz/sitemap.xml
+
+# Common crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: Slurp
+Allow: /
+
+# Crawl delay (optional - helps prevent server overload)
+Crawl-delay: 1
