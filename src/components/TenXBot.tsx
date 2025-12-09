@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { motion, AnimatePresence, useMotionValue, useSpring } from 'framer-motion'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
@@ -11,7 +12,7 @@ import { springs } from '@/lib/animations'
 
 // Icons
 const BotIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" className="w-6 h-6" stroke="currentColor" strokeWidth="2">
+  <svg viewBox="0 0 24 24" fill="none" className="w-4 h-4 sm:w-5 sm:h-5" stroke="currentColor" strokeWidth="2">
     <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7v1a2 2 0 0 1 2 2v1a2 2 0 0 1-2 2v1a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-1a2 2 0 0 1-2-2v-1a2 2 0 0 1 2-2v-1a7 7 0 0 1 7-7h1V5.73c-.6-.34-1-.99-1-1.73a2 2 0 0 1 2-2z"/>
     <circle cx="9" cy="13" r="1.5" fill="currentColor"/>
     <circle cx="15" cy="13" r="1.5" fill="currentColor"/>
@@ -36,57 +37,6 @@ const SparkleIcon = () => (
     <path d="M12 0L14.59 8.41L23 11L14.59 13.59L12 22L9.41 13.59L1 11L9.41 8.41L12 0Z"/>
   </svg>
 )
-
-// Magnetic FAB wrapper
-const MagneticFAB = ({ children, onClick }: { children: React.ReactNode, onClick: () => void }) => {
-  const ref = useRef<HTMLButtonElement>(null)
-  const x = useMotionValue(0)
-  const y = useMotionValue(0)
-  
-  const springX = useSpring(x, { stiffness: 400, damping: 25 })
-  const springY = useSpring(y, { stiffness: 400, damping: 25 })
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!ref.current) return
-    const rect = ref.current.getBoundingClientRect()
-    const centerX = rect.left + rect.width / 2
-    const centerY = rect.top + rect.height / 2
-    x.set((e.clientX - centerX) * 0.2)
-    y.set((e.clientY - centerY) * 0.2)
-  }
-
-  const handleMouseLeave = () => {
-    x.set(0)
-    y.set(0)
-  }
-
-  return (
-    <motion.button
-      ref={ref}
-      style={{ x: springX, y: springY }}
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      exit={{ scale: 0, opacity: 0 }}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.95 }}
-      onMouseMove={handleMouseMove}
-      onMouseLeave={handleMouseLeave}
-      onClick={onClick}
-      className={cn(
-        "fixed bottom-6 right-6 z-50",
-        "w-16 h-16 rounded-full",
-        "bg-gradient-to-br from-violet-500 via-purple-500 to-fuchsia-600",
-        "text-white shadow-2xl shadow-purple-500/40",
-        "flex items-center justify-center",
-        "hover:shadow-[0_0_40px_rgba(168,85,247,0.5)]",
-        "transition-shadow duration-300"
-      )}
-      aria-label="Open 10XBot"
-    >
-      {children}
-    </motion.button>
-  )
-}
 
 interface Message extends ChatMessage {
   id: string
@@ -274,62 +224,23 @@ export function TenXBot() {
   // Don't render for non-authenticated users
   if (!user) return null
 
-  return (
-    <>
-      {/* Floating Button */}
-      <AnimatePresence>
-        {!isOpen && (
-          <MagneticFAB onClick={() => setIsOpen(true)}>
-            <motion.div
-              animate={{ 
-                rotate: [0, 10, -10, 0],
-              }}
-              transition={{ 
-                duration: 2, 
-                repeat: Infinity,
-                repeatDelay: 3
-              }}
-            >
-              <BotIcon />
-            </motion.div>
-            
-            {/* Multiple pulse rings */}
-            <motion.div
-              className="absolute inset-0 rounded-full bg-purple-400"
-              initial={{ scale: 1, opacity: 0.4 }}
-              animate={{ scale: 1.8, opacity: 0 }}
-              transition={{ duration: 2, repeat: Infinity }}
-            />
-            <motion.div
-              className="absolute inset-0 rounded-full bg-purple-500"
-              initial={{ scale: 1, opacity: 0.3 }}
-              animate={{ scale: 1.5, opacity: 0 }}
-              transition={{ duration: 2, repeat: Infinity, delay: 0.5 }}
-            />
-            
-            {/* Glow effect */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-400 to-fuchsia-500 blur-xl opacity-50 -z-10" />
-          </MagneticFAB>
-        )}
-      </AnimatePresence>
-
-      {/* Chat Panel */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className={cn(
-              "fixed bottom-6 right-6 z-50",
-              "w-[400px] h-[600px] max-h-[85vh]",
-              "bg-background/95 backdrop-blur-xl",
-              "border border-border/50 rounded-3xl",
-              "shadow-2xl shadow-black/20",
-              "flex flex-col overflow-hidden"
-            )}
-          >
+  const chatPanel = (
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 20, scale: 0.95 }}
+          transition={{ type: "spring", damping: 25, stiffness: 300 }}
+          className={cn(
+            "fixed bottom-6 right-6 z-50",
+            "w-[400px] h-[600px] max-h-[85vh]",
+            "bg-background/95 backdrop-blur-xl",
+            "border border-border/50 rounded-3xl",
+            "shadow-2xl shadow-black/20",
+            "flex flex-col overflow-hidden"
+          )}
+        >
             {/* Gradient border effect */}
             <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-violet-500/20 via-transparent to-fuchsia-500/20 pointer-events-none" />
             
@@ -549,6 +460,21 @@ export function TenXBot() {
           </motion.div>
         )}
       </AnimatePresence>
+  )
+
+  return (
+    <>
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={() => setIsOpen(true)}
+        className="gap-1.5 sm:gap-2 hover:bg-primary/10 hover:border-primary/50 transition-all h-8 sm:h-9 px-2 sm:px-3 backdrop-blur-sm"
+      >
+        <BotIcon />
+        <span className="hidden md:inline text-sm">AI Chat</span>
+      </Button>
+      
+      {createPortal(chatPanel, document.body)}
     </>
   )
 }

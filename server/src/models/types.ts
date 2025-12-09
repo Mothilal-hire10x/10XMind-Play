@@ -46,6 +46,10 @@ export interface GameResultResponse {
   errorRate?: number | null;
   details: any;
   completedAt: number;
+  // User details for admin views
+  userEmail?: string;
+  userName?: string;
+  userRollNo?: string;
 }
 
 export interface Session {

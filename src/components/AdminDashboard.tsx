@@ -113,7 +113,9 @@ function apiToGameResult(apiResult: any): GameResult {
   return {
     id: apiResult.id,
     userId: apiResult.userId,
-    userEmail: '', // Not returned by API
+    userEmail: apiResult.userEmail || '',
+    userName: apiResult.userName || '',
+    userRollNo: apiResult.userRollNo || '',
     gameId: apiResult.gameId,
     score: apiResult.score,
     reactionTime: apiResult.reactionTime,
@@ -135,6 +137,8 @@ export function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [selectedStudentDetails, setSelectedStudentDetails] = useState<User | null>(null)
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
+  const [selectedResultDetails, setSelectedResultDetails] = useState<GameResult | null>(null)
+  const [showResultDetailsDialog, setShowResultDetailsDialog] = useState(false)
 
   // Fetch all data on mount
   useEffect(() => {
@@ -564,8 +568,9 @@ export function AdminDashboard() {
             </motion.div>
 
             <Tabs defaultValue="students" className="space-y-4">
-              <TabsList className="grid w-full grid-cols-4 lg:w-[500px]">
+              <TabsList className="grid w-full grid-cols-5 lg:w-[600px]">
                 <TabsTrigger value="students">Students</TabsTrigger>
+                <TabsTrigger value="results">Results</TabsTrigger>
                 <TabsTrigger value="games">Games</TabsTrigger>
                 <TabsTrigger value="overall">Overall</TabsTrigger>
                 <TabsTrigger value="storage">Storage</TabsTrigger>
@@ -695,6 +700,144 @@ export function AdminDashboard() {
                         ))
                       )}
                     </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* All Results Tab - Shows complete game results with details */}
+              <TabsContent value="results" className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <div className="flex items-center justify-between flex-wrap gap-4">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          <Database size={24} className="text-primary" />
+                          All Game Results
+                        </CardTitle>
+                        <CardDescription>Complete game results from all students ({filteredResults.length} records)</CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                        <Select value={selectedStudent} onValueChange={setSelectedStudent}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="All Students" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Students</SelectItem>
+                            {students.map(s => (
+                              <SelectItem key={s.id} value={s.id}>{s.name || s.email}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={selectedGame} onValueChange={setSelectedGame}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="All Games" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Games</SelectItem>
+                            {GAMES.map(g => (
+                              <SelectItem key={g.id} value={g.id}>{g.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleExport('csv')}
+                          className="gap-2"
+                        >
+                          <FileCsv size={16} className="text-green-600" />
+                          Export
+                        </Button>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    {filteredResults.length === 0 ? (
+                      <div className="text-center py-12 text-muted-foreground">
+                        <Database size={48} className="mx-auto mb-4 opacity-20" />
+                        <p>No game results found</p>
+                      </div>
+                    ) : (
+                      <div className="rounded-md border overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Date & Time</TableHead>
+                              <TableHead>Student</TableHead>
+                              <TableHead>Roll No</TableHead>
+                              <TableHead>Game</TableHead>
+                              <TableHead className="text-right">Score</TableHead>
+                              <TableHead className="text-right">Accuracy</TableHead>
+                              <TableHead className="text-right">Reaction Time</TableHead>
+                              <TableHead className="text-right">Errors</TableHead>
+                              <TableHead className="text-center">Details</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredResults
+                              .sort((a, b) => b.timestamp - a.timestamp)
+                              .slice(0, 100) // Show last 100 results
+                              .map((result) => {
+                                const game = GAMES.find(g => g.id === result.gameId)
+                                const student = students.find(s => s.id === result.userId)
+                                return (
+                                  <TableRow key={result.id}>
+                                    <TableCell className="font-medium whitespace-nowrap">
+                                      {formatDateTime(result.timestamp)}
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex flex-col">
+                                        <span className="font-semibold">{result.userName || student?.name || 'Unknown'}</span>
+                                        <span className="text-xs text-muted-foreground">{result.userEmail || student?.email}</span>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Badge variant="outline">{result.userRollNo || student?.rollNo || 'N/A'}</Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div>
+                                        <p className="font-semibold">{game?.name || result.gameId}</p>
+                                        <p className="text-xs text-muted-foreground capitalize">{game?.category}</p>
+                                      </div>
+                                    </TableCell>
+                                    <TableCell className="text-right font-bold text-primary">
+                                      {result.score?.toFixed(0) || 0}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      <Badge className={result.accuracy >= 75 ? 'bg-green-600' : result.accuracy >= 50 ? 'bg-yellow-600' : 'bg-red-600'}>
+                                        {result.accuracy?.toFixed(1) || 0}%
+                                      </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right text-blue-600">
+                                      {result.reactionTime ? `${result.reactionTime.toFixed(0)}ms` : 'N/A'}
+                                    </TableCell>
+                                    <TableCell className="text-right text-red-600">
+                                      {result.errorCount || 0}
+                                    </TableCell>
+                                    <TableCell className="text-center">
+                                      <Button 
+                                        variant="ghost" 
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedResultDetails(result)
+                                          setShowResultDetailsDialog(true)
+                                        }}
+                                      >
+                                        <Eye size={16} />
+                                      </Button>
+                                    </TableCell>
+                                  </TableRow>
+                                )
+                              })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                    {filteredResults.length > 100 && (
+                      <p className="text-sm text-muted-foreground text-center mt-4">
+                        Showing 100 of {filteredResults.length} results. Export to see all.
+                      </p>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>
@@ -1404,6 +1547,177 @@ export function AdminDashboard() {
               })()}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Result Details Dialog */}
+      <Dialog open={showResultDetailsDialog} onOpenChange={setShowResultDetailsDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-xl">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+                <ChartBar size={20} weight="bold" className="text-white" />
+              </div>
+              <div>
+                <div>Game Result Details</div>
+                <DialogDescription className="mt-1">
+                  Complete breakdown of this game session
+                </DialogDescription>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedResultDetails && (() => {
+            const game = GAMES.find(g => g.id === selectedResultDetails.gameId)
+            const student = students.find(s => s.id === selectedResultDetails.userId)
+            
+            return (
+              <div className="space-y-6 mt-4">
+                {/* Basic Info */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card className="p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Student</p>
+                    <p className="font-semibold">{selectedResultDetails.userName || student?.name || 'Unknown'}</p>
+                    <p className="text-xs text-muted-foreground">{selectedResultDetails.userEmail || student?.email}</p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Roll Number</p>
+                    <p className="font-semibold">{selectedResultDetails.userRollNo || student?.rollNo || 'N/A'}</p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Game</p>
+                    <p className="font-semibold">{game?.name || selectedResultDetails.gameId}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{game?.category}</p>
+                  </Card>
+                  <Card className="p-4">
+                    <p className="text-xs text-muted-foreground mb-1">Date & Time</p>
+                    <p className="font-semibold">{formatDateTime(selectedResultDetails.timestamp)}</p>
+                  </Card>
+                </div>
+
+                {/* Performance Metrics */}
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Trophy size={20} className="text-yellow-500" />
+                      Performance Metrics
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      <div className="text-center p-4 bg-primary/10 rounded-lg">
+                        <p className="text-3xl font-bold text-primary">{selectedResultDetails.score?.toFixed(0) || 0}</p>
+                        <p className="text-xs text-muted-foreground">Score</p>
+                      </div>
+                      <div className="text-center p-4 bg-green-500/10 rounded-lg">
+                        <p className="text-3xl font-bold text-green-600">{selectedResultDetails.accuracy?.toFixed(1) || 0}%</p>
+                        <p className="text-xs text-muted-foreground">Accuracy</p>
+                      </div>
+                      <div className="text-center p-4 bg-blue-500/10 rounded-lg">
+                        <p className="text-3xl font-bold text-blue-600">{selectedResultDetails.reactionTime?.toFixed(0) || 'N/A'}</p>
+                        <p className="text-xs text-muted-foreground">Reaction Time (ms)</p>
+                      </div>
+                      <div className="text-center p-4 bg-red-500/10 rounded-lg">
+                        <p className="text-3xl font-bold text-red-600">{selectedResultDetails.errorCount || 0}</p>
+                        <p className="text-xs text-muted-foreground">Errors</p>
+                      </div>
+                      <div className="text-center p-4 bg-orange-500/10 rounded-lg">
+                        <p className="text-3xl font-bold text-orange-600">{selectedResultDetails.errorRate?.toFixed(1) || 0}%</p>
+                        <p className="text-xs text-muted-foreground">Error Rate</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Game-Specific Details */}
+                {selectedResultDetails.details && Object.keys(selectedResultDetails.details).length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Brain size={20} className="text-purple-500" />
+                        Game-Specific Details
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {Object.entries(selectedResultDetails.details)
+                          .filter(([key]) => key !== 'trials' && key !== 'customMessage')
+                          .map(([key, value]) => (
+                            <div key={key} className="p-3 bg-muted/50 rounded-lg">
+                              <p className="text-xs text-muted-foreground capitalize mb-1">
+                                {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
+                              </p>
+                              <p className="font-semibold">
+                                {typeof value === 'number' 
+                                  ? (Number.isInteger(value) ? value : value.toFixed(2))
+                                  : String(value)}
+                              </p>
+                            </div>
+                          ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Trial Data if available */}
+                {selectedResultDetails.details?.trials && Array.isArray(selectedResultDetails.details.trials) && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Database size={20} className="text-blue-500" />
+                        Trial Data ({selectedResultDetails.details.trials.length} trials)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="rounded-md border max-h-[300px] overflow-y-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>#</TableHead>
+                              <TableHead>Stimulus</TableHead>
+                              <TableHead>Response</TableHead>
+                              <TableHead className="text-center">Correct</TableHead>
+                              <TableHead className="text-right">RT (ms)</TableHead>
+                              <TableHead>Type</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedResultDetails.details.trials.slice(0, 50).map((trial: any, idx: number) => (
+                              <TableRow key={idx}>
+                                <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
+                                <TableCell className="font-mono text-xs">{trial.stimulus || 'N/A'}</TableCell>
+                                <TableCell className="font-mono text-xs">{trial.response || 'N/A'}</TableCell>
+                                <TableCell className="text-center">
+                                  {trial.correct ? (
+                                    <CheckCircle size={16} className="text-green-600 inline" />
+                                  ) : (
+                                    <XCircle size={16} className="text-red-600 inline" />
+                                  )}
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-xs">
+                                  {trial.reactionTime?.toFixed(0) || 'N/A'}
+                                </TableCell>
+                                <TableCell className="text-xs">
+                                  <Badge variant="outline" className="text-xs">
+                                    {trial.trialType || 'standard'}
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      {selectedResultDetails.details.trials.length > 50 && (
+                        <p className="text-xs text-muted-foreground text-center mt-2">
+                          Showing first 50 of {selectedResultDetails.details.trials.length} trials
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )
+          })()}
         </DialogContent>
       </Dialog>
 

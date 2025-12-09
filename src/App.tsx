@@ -219,7 +219,6 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <AppContent />
-        <TenXBot />
       </AuthProvider>
     </ThemeProvider>
   )

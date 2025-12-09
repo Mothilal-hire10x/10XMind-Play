@@ -31,8 +31,35 @@ function toGameResultResponse(result: GameResult): GameResultResponse {
     score: result.score,
     accuracy: result.accuracy,
     reactionTime: result.reaction_time,
+    errorCount: result.error_count,
+    errorRate: result.error_rate,
     details: result.details ? JSON.parse(result.details) : null,
     completedAt: result.completed_at
+  };
+}
+
+// Extended result type with user info
+interface GameResultWithUser extends GameResult {
+  user_email?: string;
+  user_name?: string;
+  user_roll_no?: string;
+}
+
+function toGameResultResponseWithUser(result: GameResultWithUser): GameResultResponse {
+  return {
+    id: result.id,
+    userId: result.user_id,
+    gameId: result.game_id,
+    score: result.score,
+    accuracy: result.accuracy,
+    reactionTime: result.reaction_time,
+    errorCount: result.error_count,
+    errorRate: result.error_rate,
+    details: result.details ? JSON.parse(result.details) : null,
+    completedAt: result.completed_at,
+    userEmail: result.user_email,
+    userName: result.user_name,
+    userRollNo: result.user_roll_no
   };
 }
 
@@ -94,34 +121,49 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// GET /api/admin/results - Get all results
+// GET /api/admin/results - Get all results with user details
 router.get('/results', async (req: AuthRequest, res: Response) => {
   const db = getDatabase(process.env.DATABASE_PATH!);
 
   try {
-    const results = await db.all<GameResult>(
-      'SELECT * FROM game_results ORDER BY completed_at DESC'
+    const results = await db.all<GameResultWithUser>(
+      `SELECT 
+        gr.*, 
+        u.email as user_email, 
+        u.name as user_name, 
+        u.roll_no as user_roll_no
+      FROM game_results gr
+      LEFT JOIN users u ON gr.user_id = u.id
+      ORDER BY gr.completed_at DESC`
     );
 
-    res.json({ results: results.map(toGameResultResponse) });
+    res.json({ results: results.map(toGameResultResponseWithUser) });
   } catch (error) {
     console.error('Get all results error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
 
-// GET /api/admin/results/user/:userId - Get results for a specific user
+// GET /api/admin/results/user/:userId - Get results for a specific user with user details
 router.get('/results/user/:userId', async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
   const db = getDatabase(process.env.DATABASE_PATH!);
 
   try {
-    const results = await db.all<GameResult>(
-      'SELECT * FROM game_results WHERE user_id = ? ORDER BY completed_at DESC',
+    const results = await db.all<GameResultWithUser>(
+      `SELECT 
+        gr.*, 
+        u.email as user_email, 
+        u.name as user_name, 
+        u.roll_no as user_roll_no
+      FROM game_results gr
+      LEFT JOIN users u ON gr.user_id = u.id
+      WHERE gr.user_id = ?
+      ORDER BY gr.completed_at DESC`,
       [userId]
     );
 
-    res.json({ results: results.map(toGameResultResponse) });
+    res.json({ results: results.map(toGameResultResponseWithUser) });
   } catch (error) {
     console.error('Get user results error:', error);
     res.status(500).json({ error: 'Internal server error' });

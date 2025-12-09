@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Brain, Eye, TreeStructure, Lightning, ChartLine, SignOut, Sparkle, PlayCircle, Cube, Ear, User, EnvelopeSimple, IdentificationCard, Calendar, CalendarCheck, ArrowRight } from '@phosphor-icons/react'
 import { Badge } from '@/components/ui/badge'
 import { ThemeToggle } from '@/components/ThemeToggle'
+import { TenXBot } from '@/components/TenXBot'
 import { motion, useMotionValue, useSpring } from 'framer-motion'
 import {
   Dialog,
@@ -185,6 +186,9 @@ export function Dashboard({ onSelectGame, onViewResults }: DashboardProps) {
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
           >
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+              <TenXBot />
+            </motion.div>
             <ThemeToggle />
             <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Button variant="outline" size="sm" onClick={() => setShowProfile(true)} className="gap-1.5 sm:gap-2 hover:bg-primary/10 hover:border-primary/50 transition-all h-8 sm:h-9 px-2 sm:px-3 backdrop-blur-sm">

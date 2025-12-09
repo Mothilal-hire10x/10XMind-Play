@@ -13,6 +13,8 @@ export interface GameResult {
   id: string
   userId: string
   userEmail?: string
+  userName?: string
+  userRollNo?: string
   gameId: string
   score: number
   reactionTime?: number
