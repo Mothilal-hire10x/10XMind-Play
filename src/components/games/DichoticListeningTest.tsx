@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
-import { X, SpeakerHigh, Check, Headphones, NumberCircleFour } from '@phosphor-icons/react'
+import { X, SpeakerHigh, Check, Headphones, NumberCircleFour, Ear } from '@phosphor-icons/react'
 import { TrialResult, GameSummary } from '@/lib/types'
 import { motion, AnimatePresence } from 'framer-motion'
 
@@ -23,8 +23,8 @@ type TrialPhase = 'ready' | 'playing' | 'responding'
 interface TrialData {
   leftNumbers: [number, number]
   rightNumbers: [number, number]
-  allNumbers: number[]
-  options: number[]
+  leftOptions: number[]
+  rightOptions: number[]
 }
 
 export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningTestProps) {
@@ -36,7 +36,8 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
   const [currentTrial, setCurrentTrial] = useState(0)
   const [trialData, setTrialData] = useState<TrialData | null>(null)
   const [phase, setPhase] = useState<TrialPhase>('ready')
-  const [selectedNumbers, setSelectedNumbers] = useState<number[]>([])
+  const [selectedLeftNumbers, setSelectedLeftNumbers] = useState<number[]>([])
+  const [selectedRightNumbers, setSelectedRightNumbers] = useState<number[]>([])
   const [startTime, setStartTime] = useState(0)
   const [results, setResults] = useState<TrialResult[]>([])
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null)
@@ -44,7 +45,6 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
   const [audioTestPassed, setAudioTestPassed] = useState(false)
   
   const audioContextRef = useRef<AudioContext | null>(null)
-  const utterancesRef = useRef<SpeechSynthesisUtterance[]>([])
 
   // Get or create AudioContext
   const getAudioContext = useCallback(() => {
@@ -67,74 +67,110 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     }
   }, [])
 
-  // Speak a number using Web Speech API
-  const speakNumber = useCallback((number: number, pan: number = 0): Promise<void> => {
+  // Speak a number using Web Speech API with stereo panning
+  const speakNumber = useCallback((number: number, pan: number): Promise<void> => {
     return new Promise((resolve) => {
-      if (!('speechSynthesis' in window)) {
+      try {
+        const ctx = getAudioContext()
+        
+        // Create speech synthesis utterance
+        if ('speechSynthesis' in window) {
+          const utterance = new SpeechSynthesisUtterance(number.toString())
+          const voices = speechSynthesis.getVoices()
+          
+          const englishVoice = voices.find(v => v.lang.startsWith('en'))
+          if (englishVoice) {
+            utterance.voice = englishVoice
+          }
+          
+          utterance.rate = 1.0
+          utterance.volume = 1.0
+          utterance.pitch = pan < 0 ? 0.9 : 1.1 // Slightly different pitch for left/right
+          utterance.lang = 'en-US'
+
+          utterance.onend = () => resolve()
+          utterance.onerror = () => resolve()
+
+          speechSynthesis.speak(utterance)
+        }
+        
+        // Also play a tone with stereo panning for true dichotic effect
+        const osc = ctx.createOscillator()
+        const gainNode = ctx.createGain()
+        const panner = ctx.createStereoPanner()
+        
+        // Different frequency for each number
+        const baseFreq = 200 + (number * 50)
+        osc.frequency.setValueAtTime(baseFreq, ctx.currentTime)
+        osc.type = 'sine'
+        
+        // Stereo pan: -1 = full left, +1 = full right
+        panner.pan.setValueAtTime(pan, ctx.currentTime)
+        
+        gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+        
+        osc.connect(gainNode)
+        gainNode.connect(panner)
+        panner.connect(ctx.destination)
+        
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + 0.5)
+        
+        setTimeout(resolve, 600)
+      } catch (error) {
+        console.error('Audio error:', error)
         resolve()
-        return
       }
-
-      const utterance = new SpeechSynthesisUtterance(number.toString())
-      const voices = speechSynthesis.getVoices()
-      
-      const englishVoice = voices.find(v => v.lang.startsWith('en'))
-      if (englishVoice) {
-        utterance.voice = englishVoice
-      }
-      
-      utterance.rate = 1.0
-      utterance.volume = 1.0
-      utterance.pitch = 1.0
-      utterance.lang = 'en-US'
-
-      utterance.onend = () => resolve()
-      utterance.onerror = () => resolve()
-
-      utterancesRef.current.push(utterance)
-      speechSynthesis.speak(utterance)
-      
-      setTimeout(resolve, 1000)
     })
-  }, [])
+  }, [getAudioContext])
 
   // Generate random trial data
   const generateTrialData = useCallback((): TrialData => {
     // Shuffle available numbers
     const shuffled = [...AVAILABLE_NUMBERS].sort(() => Math.random() - 0.5)
     
-    // Pick 4 unique numbers
+    // Pick 4 unique numbers: 2 for left, 2 for right
     const leftNumbers: [number, number] = [shuffled[0], shuffled[1]]
     const rightNumbers: [number, number] = [shuffled[2], shuffled[3]]
-    const allNumbers = [...leftNumbers, ...rightNumbers]
     
-    // Generate 4 distractors (wrong numbers)
-    const remaining = AVAILABLE_NUMBERS.filter(n => !allNumbers.includes(n))
-    const distractors = remaining.sort(() => Math.random() - 0.5).slice(0, 4)
+    // Generate 2 distractors for left ear options
+    const leftRemaining = AVAILABLE_NUMBERS.filter(n => !leftNumbers.includes(n))
+    const leftDistractors = leftRemaining.sort(() => Math.random() - 0.5).slice(0, 2)
+    const leftOptions = [...leftNumbers, ...leftDistractors].sort(() => Math.random() - 0.5)
     
-    // Create options: correct 4 + 4 distractors, shuffled
-    const options = [...allNumbers, ...distractors].sort(() => Math.random() - 0.5)
+    // Generate 2 distractors for right ear options
+    const rightRemaining = AVAILABLE_NUMBERS.filter(n => !rightNumbers.includes(n))
+    const rightDistractors = rightRemaining.sort(() => Math.random() - 0.5).slice(0, 2)
+    const rightOptions = [...rightNumbers, ...rightDistractors].sort(() => Math.random() - 0.5)
     
-    return { leftNumbers, rightNumbers, allNumbers, options }
+    return { leftNumbers, rightNumbers, leftOptions, rightOptions }
   }, [])
 
-  // Play all 4 numbers simultaneously (2 left, 2 right)
+  // Play numbers simultaneously to left and right ears
   const playDichoticStimuli = useCallback(async () => {
     if (!trialData || isPlayingAudio) return
     
     setIsPlayingAudio(true)
     speechSynthesis.cancel()
-    utterancesRef.current = []
 
     try {
-      // Play all 4 numbers with small delays
-      await speakNumber(trialData.leftNumbers[0])
-      await new Promise(r => setTimeout(r, 100))
-      await speakNumber(trialData.rightNumbers[0])
-      await new Promise(r => setTimeout(r, 100))
-      await speakNumber(trialData.leftNumbers[1])
-      await new Promise(r => setTimeout(r, 100))
-      await speakNumber(trialData.rightNumbers[1])
+      // Play both left ear numbers simultaneously (pan = -1 for left)
+      // and both right ear numbers simultaneously (pan = +1 for right)
+      
+      // Start all 4 numbers at the same time
+      const leftPromises = [
+        speakNumber(trialData.leftNumbers[0], -1),
+        speakNumber(trialData.leftNumbers[1], -1)
+      ]
+      
+      const rightPromises = [
+        speakNumber(trialData.rightNumbers[0], 1),
+        speakNumber(trialData.rightNumbers[1], 1)
+      ]
+      
+      // Play all simultaneously
+      await Promise.all([...leftPromises, ...rightPromises])
       
       await new Promise(r => setTimeout(r, 300))
     } catch (error) {
@@ -151,13 +187,13 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     getAudioContext()
     setIsPlayingAudio(true)
     
-    await speakNumber(3)
-    await new Promise(r => setTimeout(r, 200))
-    await speakNumber(5)
-    await new Promise(r => setTimeout(r, 200))
-    await speakNumber(8)
-    await new Promise(r => setTimeout(r, 200))
-    await speakNumber(2)
+    // Play left ear (3, 5) and right ear (8, 2) simultaneously
+    await Promise.all([
+      speakNumber(3, -1),
+      speakNumber(5, -1),
+      speakNumber(8, 1),
+      speakNumber(2, 1)
+    ])
     
     setIsPlayingAudio(false)
   }, [speakNumber, getAudioContext])
@@ -194,7 +230,8 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
     setPhase('ready')
     setFeedback(null)
-    setSelectedNumbers([])
+    setSelectedLeftNumbers([])
+    setSelectedRightNumbers([])
     setTrialData(generateTrialData())
   }, [currentTrial, practiceTrialCount, gamePhase, results, generateTrialData, onComplete])
 
@@ -203,7 +240,8 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     if (gamePhase === 'practice' || gamePhase === 'test') {
       setPhase('ready')
       setFeedback(null)
-      setSelectedNumbers([])
+      setSelectedLeftNumbers([])
+      setSelectedRightNumbers([])
       setTrialData(generateTrialData())
     }
   }, [gamePhase, generateTrialData])
@@ -218,14 +256,28 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     }
   }, [phase, trialData, isPlayingAudio, playDichoticStimuli])
 
-  // Toggle number selection
-  const toggleNumberSelection = useCallback((num: number) => {
+  // Toggle number selection for left ear
+  const toggleLeftNumberSelection = useCallback((num: number) => {
     if (phase !== 'responding' || feedback) return
     
-    setSelectedNumbers(prev => {
+    setSelectedLeftNumbers(prev => {
       if (prev.includes(num)) {
         return prev.filter(n => n !== num)
-      } else if (prev.length < 4) {
+      } else if (prev.length < 2) {
+        return [...prev, num]
+      }
+      return prev
+    })
+  }, [phase, feedback])
+
+  // Toggle number selection for right ear
+  const toggleRightNumberSelection = useCallback((num: number) => {
+    if (phase !== 'responding' || feedback) return
+    
+    setSelectedRightNumbers(prev => {
+      if (prev.includes(num)) {
+        return prev.filter(n => n !== num)
+      } else if (prev.length < 2) {
         return [...prev, num]
       }
       return prev
@@ -234,22 +286,30 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
   // Submit response
   const handleSubmit = useCallback(() => {
-    if (!trialData || selectedNumbers.length !== 4 || feedback) return
+    if (!trialData || selectedLeftNumbers.length !== 2 || selectedRightNumbers.length !== 2 || feedback) return
 
     const reactionTime = performance.now() - startTime
     
-    // Check if all 4 selected numbers match the correct numbers
-    const correctSet = new Set(trialData.allNumbers)
-    const selectedSet = new Set(selectedNumbers)
-    const correct = trialData.allNumbers.every(n => selectedSet.has(n)) && 
-                    selectedNumbers.every(n => correctSet.has(n))
+    // Check if both left numbers are correct
+    const leftCorrectSet = new Set(trialData.leftNumbers)
+    const selectedLeftSet = new Set(selectedLeftNumbers)
+    const leftCorrect = trialData.leftNumbers.every(n => selectedLeftSet.has(n)) && 
+                        selectedLeftNumbers.every(n => leftCorrectSet.has(n))
+    
+    // Check if both right numbers are correct
+    const rightCorrectSet = new Set(trialData.rightNumbers)
+    const selectedRightSet = new Set(selectedRightNumbers)
+    const rightCorrect = trialData.rightNumbers.every(n => selectedRightSet.has(n)) && 
+                         selectedRightNumbers.every(n => rightCorrectSet.has(n))
+    
+    const correct = leftCorrect && rightCorrect
 
     const trialResult: TrialResult = {
       stimulus: `L:[${trialData.leftNumbers.join(',')}] R:[${trialData.rightNumbers.join(',')}]`,
-      response: `[${selectedNumbers.sort((a, b) => a - b).join(',')}]`,
+      response: `L:[${selectedLeftNumbers.sort((a, b) => a - b).join(',')}] R:[${selectedRightNumbers.sort((a, b) => a - b).join(',')}]`,
       correct,
       reactionTime,
-      trialType: correct ? 'correct' : 'incorrect'
+      trialType: correct ? 'both-correct' : leftCorrect ? 'left-only' : rightCorrect ? 'right-only' : 'both-wrong'
     }
 
     setResults(prev => [...prev, trialResult])
@@ -264,7 +324,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     setTimeout(() => {
       startNextTrial()
     }, 1500)
-  }, [selectedNumbers, trialData, feedback, startTime, gamePhase, startNextTrial])
+  }, [selectedLeftNumbers, selectedRightNumbers, trialData, feedback, startTime, gamePhase, startNextTrial])
 
   const stats = {
     accuracy: results.length > 0 ? Math.round((results.filter(r => r.correct).length / results.length) * 100) : 0,
@@ -308,7 +368,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
             <div className="bg-muted/50 p-6 rounded-lg space-y-4">
               <p className="text-base font-medium">
-                👆 Click the button to hear 4 numbers: 3, 5, 8, 2
+                👆 Click to hear test audio (Left: 3, 5 | Right: 8, 2)
               </p>
               
               <Button
@@ -331,10 +391,16 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                 ) : (
                   <>
                     <SpeakerHigh size={24} weight="fill" />
-                    <span>Test Audio (3, 5, 8, 2)</span>
+                    <span>Test Dichotic Audio</span>
                   </>
                 )}
               </Button>
+              
+              <div className="text-sm text-muted-foreground text-center">
+                <p>🎧 <strong>Use headphones!</strong> You should hear:</p>
+                <p className="mt-1">Left ear: numbers 3 and 5</p>
+                <p>Right ear: numbers 8 and 2</p>
+              </div>
             </div>
 
             <div className="border-l-4 border-yellow-500 pl-4 py-2 bg-yellow-50 dark:bg-yellow-900/20 text-left">
@@ -451,16 +517,20 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                       <p className="font-semibold">What you'll do:</p>
                       <div className="space-y-2">
                         <div className="flex items-start gap-3">
-                          <NumberCircleFour size={24} className="text-primary mt-1 flex-shrink-0" weight="fill" />
-                          <p>You'll hear <strong>4 numbers</strong> spoken in quick succession</p>
+                          <Headphones size={24} className="text-primary mt-1 flex-shrink-0" weight="fill" />
+                          <p>You'll hear <strong>4 numbers simultaneously</strong> - 2 in each ear</p>
                         </div>
                         <div className="flex items-start gap-3">
-                          <Headphones size={24} className="text-primary mt-1 flex-shrink-0" weight="fill" />
-                          <p>Numbers will be presented to your <strong>left and right ears</strong></p>
+                          <Ear size={24} className="text-blue-500 mt-1 flex-shrink-0" weight="fill" />
+                          <p><strong>Left ear</strong> will hear 2 numbers at the same time</p>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <Ear size={24} className="text-green-500 mt-1 flex-shrink-0" weight="fill" />
+                          <p><strong>Right ear</strong> will hear 2 different numbers at the same time</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Check size={24} className="text-primary mt-1 flex-shrink-0" weight="bold" />
-                          <p>Select all <strong>4 numbers</strong> you heard from the choices</p>
+                          <p>Select which <strong>2 numbers</strong> you heard in each ear separately</p>
                         </div>
                       </div>
                     </div>
@@ -490,7 +560,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                         <div>
                           <p className="font-semibold mb-1">Listen Carefully</p>
                           <p className="text-base text-muted-foreground">
-                            You'll hear 4 numbers spoken quickly (2 to left ear, 2 to right ear)
+                            You'll hear 2 numbers in left ear and 2 different numbers in right ear - all at the same time
                           </p>
                         </div>
                       </div>
@@ -500,9 +570,9 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                           2
                         </div>
                         <div>
-                          <p className="font-semibold mb-1">Select 4 Numbers</p>
+                          <p className="font-semibold mb-1">Select Numbers for Each Ear</p>
                           <p className="text-base text-muted-foreground">
-                            Click on the numbers you heard from 8 choices (4 correct + 4 distractors)
+                            Choose 2 numbers for left ear from 4 options, and 2 numbers for right ear from 4 options
                           </p>
                         </div>
                       </div>
@@ -514,7 +584,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                         <div>
                           <p className="font-semibold mb-1">Submit Your Response</p>
                           <p className="text-base text-muted-foreground">
-                            Once you've selected exactly 4 numbers, click Submit
+                            Once you've selected 2 numbers for each ear (4 total), click Submit
                           </p>
                         </div>
                       </div>
@@ -522,7 +592,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
                     <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                       <p className="text-sm">
-                        <strong>💡 Pro tip:</strong> Focus on remembering all the numbers, not just the order!
+                        <strong>💡 Pro tip:</strong> This tests true dichotic listening - your left and right ears will hear different numbers simultaneously!
                       </p>
                     </div>
                   </div>
@@ -542,7 +612,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                       <ul className="space-y-2">
                         <li className="flex items-start gap-2">
                           <span className="text-green-600 font-bold mt-1">✓</span>
-                          <span>Use headphones or earphones for best results</span>
+                          <span><strong>MUST use headphones</strong> - the test requires separate left/right audio</span>
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-green-600 font-bold mt-1">✓</span>
@@ -554,7 +624,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                         </li>
                         <li className="flex items-start gap-2">
                           <span className="text-green-600 font-bold mt-1">✓</span>
-                          <span>Focus on all 4 numbers, not their order</span>
+                          <span>Try to identify which numbers came from which ear</span>
                         </li>
                       </ul>
                     </div>
@@ -720,43 +790,84 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                     What numbers did you hear?
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Select exactly <strong>4 numbers</strong> from the choices below
+                    Select <strong>2 numbers for each ear</strong> from the choices below
                   </p>
                   
-                  <div className="flex items-center justify-center gap-2 mb-4">
-                    <Badge variant={selectedNumbers.length === 4 ? "default" : "outline"}>
-                      Selected: {selectedNumbers.length}/4
+                  <div className="flex items-center justify-center gap-4 mb-4">
+                    <Badge variant={selectedLeftNumbers.length === 2 ? "default" : "outline"} className="bg-blue-500">
+                      Left Ear: {selectedLeftNumbers.length}/2
+                    </Badge>
+                    <Badge variant={selectedRightNumbers.length === 2 ? "default" : "outline"} className="bg-green-500">
+                      Right Ear: {selectedRightNumbers.length}/2
                     </Badge>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-3 mb-8">
-                  {trialData?.options.map((num) => {
-                    const isSelected = selectedNumbers.includes(num)
-                    return (
-                      <Button
-                        key={num}
-                        variant={isSelected ? 'default' : 'outline'}
-                        size="lg"
-                        onClick={() => toggleNumberSelection(num)}
-                        disabled={feedback !== null}
-                        className={`text-2xl font-bold h-20 ${
-                          isSelected 
-                            ? 'bg-primary hover:bg-primary/90 scale-105 shadow-lg' 
-                            : 'hover:bg-primary/10 hover:border-primary'
-                        } transition-all`}
-                      >
-                        {num}
-                      </Button>
-                    )
-                  })}
+                <div className="grid grid-cols-2 gap-8 mb-8">
+                  {/* Left Ear Selection */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                      <Ear size={24} className="text-blue-600" weight="fill" />
+                      <h4 className="text-lg font-semibold text-blue-600">Left Ear</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {trialData?.leftOptions.map((num) => {
+                        const isSelected = selectedLeftNumbers.includes(num)
+                        return (
+                          <Button
+                            key={`left-${num}`}
+                            variant={isSelected ? 'default' : 'outline'}
+                            size="lg"
+                            onClick={() => toggleLeftNumberSelection(num)}
+                            disabled={feedback !== null}
+                            className={`text-2xl font-bold h-20 ${
+                              isSelected 
+                                ? 'bg-blue-500 hover:bg-blue-600 scale-105 shadow-lg' 
+                                : 'hover:bg-blue-500/10 hover:border-blue-500'
+                            } transition-all`}
+                          >
+                            {num}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Right Ear Selection */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                      <Ear size={24} className="text-green-600" weight="fill" />
+                      <h4 className="text-lg font-semibold text-green-600">Right Ear</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {trialData?.rightOptions.map((num) => {
+                        const isSelected = selectedRightNumbers.includes(num)
+                        return (
+                          <Button
+                            key={`right-${num}`}
+                            variant={isSelected ? 'default' : 'outline'}
+                            size="lg"
+                            onClick={() => toggleRightNumberSelection(num)}
+                            disabled={feedback !== null}
+                            className={`text-2xl font-bold h-20 ${
+                              isSelected 
+                                ? 'bg-green-500 hover:bg-green-600 scale-105 shadow-lg' 
+                                : 'hover:bg-green-500/10 hover:border-green-500'
+                            } transition-all`}
+                          >
+                            {num}
+                          </Button>
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 <Button
                   size="lg"
                   className="w-full text-lg"
                   onClick={handleSubmit}
-                  disabled={selectedNumbers.length !== 4 || feedback !== null}
+                  disabled={selectedLeftNumbers.length !== 2 || selectedRightNumbers.length !== 2 || feedback !== null}
                 >
                   Submit Response
                 </Button>
@@ -773,7 +884,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                       {feedback === 'correct' ? (
                         <div className="flex items-center justify-center gap-2">
                           <Check size={24} weight="bold" />
-                          <span>Correct! All 4 numbers matched!</span>
+                          <span>Correct! All numbers matched!</span>
                         </div>
                       ) : (
                         <div className="flex items-center justify-center gap-2">
@@ -783,7 +894,16 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                       )}
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      Correct numbers: {trialData?.allNumbers.sort((a, b) => a - b).join(', ')}
+                      <div className="grid grid-cols-2 gap-4 mt-2">
+                        <div>
+                          <span className="font-semibold text-blue-600">Left Ear: </span>
+                          {trialData?.leftNumbers.sort((a, b) => a - b).join(', ')}
+                        </div>
+                        <div>
+                          <span className="font-semibold text-green-600">Right Ear: </span>
+                          {trialData?.rightNumbers.sort((a, b) => a - b).join(', ')}
+                        </div>
+                      </div>
                     </div>
                   </motion.div>
                 )}
@@ -801,7 +921,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
             </p>
           )}
           <p className="text-center text-sm text-muted-foreground">
-            <strong>Tip:</strong> Listen carefully and try to remember all 4 numbers you hear! 🎧
+            <strong>Tip:</strong> Use headphones! Listen for which numbers come from left vs right ear! 🎧
           </p>
         </div>
       </div>
