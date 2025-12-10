@@ -54,6 +54,15 @@ export const GAMES: GameConfig[] = [
     icon: 'Ear',
     instructions: 'You will hear different syllables in each ear simultaneously through headphones. After listening, select which syllable you heard in your LEFT ear and which in your RIGHT ear. This tests auditory attention and ear dominance.',
     controls: ['Click syllable buttons for each ear']
+  },
+  {
+    id: 'handedness-inventory',
+    name: 'Handedness Inventory',
+    category: 'executive',
+    description: 'Assess lateral dominance and hand preference using the Edinburgh Handedness Inventory',
+    icon: 'HandFist',
+    instructions: 'Answer questions about your hand preference for common activities. Select which hand you prefer to use for each task. This standardized inventory helps determine your lateral dominance.',
+    controls: ['Select preference options', 'Navigate through questions']
   }
 ]
 
