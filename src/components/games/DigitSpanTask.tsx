@@ -95,9 +95,10 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
     return sequence
   }
 
-  const startNewTrial = (isPractice = false) => {
-    const sequence = generateSequence(currentSpan)
-    console.log('Starting new trial with sequence:', sequence, 'span:', currentSpan)
+  const startNewTrial = (isPractice = false, spanOverride?: number) => {
+    const spanToUse = spanOverride !== undefined ? spanOverride : currentSpan
+    const sequence = generateSequence(spanToUse)
+    console.log('Starting new trial with sequence:', sequence, 'span:', spanToUse)
     setCurrentSequence(sequence)
     setUserInput([])
     setFeedback(null)
@@ -211,6 +212,8 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
             setMaxSpan(currentSpan)
             setCurrentSpan(newSpan)
             setConsecutiveSuccesses(0)
+            startNewTrial(false, newSpan)
+            return
           }
         }
       } else {
