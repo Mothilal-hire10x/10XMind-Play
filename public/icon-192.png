@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="brainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#2563eb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1d4ed8;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="192" height="192" rx="42" fill="url(#brainGradient)" />
+  
+  <!-- Brain icon -->
+  <g fill="white">
+    <!-- Left hemisphere -->
+    <path d="M 67.2 57.6 Q 48 67.2 48 86.4 Q 48 105.6 57.6 115.2 Q 67.2 124.8 76.8 124.8 Q 86.4 124.8 86.4 115.2 L 86.4 67.2 Q 86.4 57.6 76.8 57.6 Q 72 57.6 67.2 57.6 Z" />
+    
+    <!-- Right hemisphere -->
+    <path d="M 124.8 57.6 Q 144 67.2 144 86.4 Q 144 105.6 134.4 115.2 Q 124.8 124.8 115.2 124.8 Q 105.6 124.8 105.6 115.2 L 105.6 67.2 Q 105.6 57.6 115.2 57.6 Q 120 57.6 124.8 57.6 Z" />
+    
+    <!-- Brain folds/details -->
+    <path d="M 57.6 76.8 Q 67.2 80.64 72.96 76.8" stroke="url(#brainGradient)" stroke-width="2.88" fill="none" />
+    <path d="M 61.44 92.16 Q 69.12 96 76.8 92.16" stroke="url(#brainGradient)" stroke-width="2.88" fill="none" />
+    <path d="M 134.4 76.8 Q 124.8 80.64 119.04 76.8" stroke="url(#brainGradient)" stroke-width="2.88" fill="none" />
+    <path d="M 130.56 92.16 Q 122.88 96 115.2 92.16" stroke="url(#brainGradient)" stroke-width="2.88" fill="none" />
+    
+    <!-- Connection between hemispheres -->
+    <rect x="92.16" y="67.2" width="7.68" height="48" rx="3.84" fill="white" opacity="0.8" />
+  </g>
+  
+  <!-- "10X" text at bottom -->
+  <text x="96" y="163.2" font-family="Arial, sans-serif" font-size="30" font-weight="bold" fill="white" text-anchor="middle">10X</text>
+</svg>
