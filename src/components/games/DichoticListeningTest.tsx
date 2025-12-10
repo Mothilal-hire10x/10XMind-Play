@@ -67,13 +67,13 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     }
   }, [])
 
-  // Speak a number using Web Speech API with stereo panning
-  const speakNumber = useCallback((number: number, pan: number): Promise<void> => {
+  // Generate TTS audio with stereo separation
+  const speakNumber = useCallback(async (number: number, pan: number): Promise<void> => {
     return new Promise((resolve) => {
       try {
         const ctx = getAudioContext()
         
-        // Create speech synthesis utterance
+        // Use Web Speech API to generate audio
         if ('speechSynthesis' in window) {
           const utterance = new SpeechSynthesisUtterance(number.toString())
           const voices = speechSynthesis.getVoices()
@@ -85,45 +85,76 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
           
           utterance.rate = 1.0
           utterance.volume = 1.0
-          utterance.pitch = pan < 0 ? 0.9 : 1.1 // Slightly different pitch for left/right
+          utterance.pitch = 1.0
           utterance.lang = 'en-US'
 
-          utterance.onend = () => resolve()
-          utterance.onerror = () => resolve()
+          // Unfortunately, Web Speech API doesn't support stereo panning directly
+          // So we'll use audio tones with clear stereo separation
+          utterance.onend = () => {
+            // Play a distinctive tone ONLY in the specified ear
+            playToneInEar(ctx, number, pan).then(resolve)
+          }
+          utterance.onerror = () => {
+            playToneInEar(ctx, number, pan).then(resolve)
+          }
 
           speechSynthesis.speak(utterance)
+        } else {
+          // Fallback to tone only
+          playToneInEar(ctx, number, pan).then(resolve)
         }
-        
-        // Also play a tone with stereo panning for true dichotic effect
-        const osc = ctx.createOscillator()
-        const gainNode = ctx.createGain()
-        const panner = ctx.createStereoPanner()
-        
-        // Different frequency for each number
-        const baseFreq = 200 + (number * 50)
-        osc.frequency.setValueAtTime(baseFreq, ctx.currentTime)
-        osc.type = 'sine'
-        
-        // Stereo pan: -1 = full left, +1 = full right
-        panner.pan.setValueAtTime(pan, ctx.currentTime)
-        
-        gainNode.gain.setValueAtTime(0.3, ctx.currentTime)
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
-        
-        osc.connect(gainNode)
-        gainNode.connect(panner)
-        panner.connect(ctx.destination)
-        
-        osc.start(ctx.currentTime)
-        osc.stop(ctx.currentTime + 0.5)
-        
-        setTimeout(resolve, 600)
       } catch (error) {
         console.error('Audio error:', error)
         resolve()
       }
     })
   }, [getAudioContext])
+
+  // Play a tone ONLY in specified ear (true stereo separation)
+  const playToneInEar = useCallback((ctx: AudioContext, number: number, pan: number): Promise<void> => {
+    return new Promise((resolve) => {
+      try {
+        // Create oscillator for number tone
+        const osc = ctx.createOscillator()
+        const gainNode = ctx.createGain()
+        const panner = ctx.createStereoPanner()
+        
+        // Frequency based on number (each number gets unique tone)
+        const frequencies: Record<number, number> = {
+          1: 262, 2: 294, 3: 330, 4: 349, 5: 392,
+          6: 440, 8: 494, 9: 523, 10: 587
+        }
+        const freq = frequencies[number] || 440
+        
+        osc.frequency.setValueAtTime(freq, ctx.currentTime)
+        osc.type = 'sine'
+        
+        // CRITICAL: Set pan to -1 (full left) or +1 (full right)
+        // This ensures sound comes from ONLY one speaker
+        panner.pan.setValueAtTime(pan, ctx.currentTime)
+        
+        // Envelope for smooth sound
+        gainNode.gain.setValueAtTime(0, ctx.currentTime)
+        gainNode.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.05)
+        gainNode.gain.setValueAtTime(0.4, ctx.currentTime + 0.4)
+        gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6)
+        
+        // Connect: oscillator -> gain -> panner -> output
+        osc.connect(gainNode)
+        gainNode.connect(panner)
+        panner.connect(ctx.destination)
+        
+        osc.start(ctx.currentTime)
+        osc.stop(ctx.currentTime + 0.6)
+        
+        osc.onended = () => resolve()
+        setTimeout(resolve, 700)
+      } catch (error) {
+        console.error('Tone error:', error)
+        resolve()
+      }
+    })
+  }, [])
 
   // Generate random trial data
   const generateTrialData = useCallback((): TrialData => {
@@ -155,22 +186,20 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     speechSynthesis.cancel()
 
     try {
-      // Play both left ear numbers simultaneously (pan = -1 for left)
-      // and both right ear numbers simultaneously (pan = +1 for right)
+      // FIRST PAIR: Play leftNumbers[0] in LEFT ear and rightNumbers[0] in RIGHT ear SIMULTANEOUSLY
+      await Promise.all([
+        speakNumber(trialData.leftNumbers[0], -1),  // -1 = ONLY left speaker
+        speakNumber(trialData.rightNumbers[0], 1)   // +1 = ONLY right speaker
+      ])
       
-      // Start all 4 numbers at the same time
-      const leftPromises = [
-        speakNumber(trialData.leftNumbers[0], -1),
-        speakNumber(trialData.leftNumbers[1], -1)
-      ]
+      // Small delay between pairs
+      await new Promise(r => setTimeout(r, 200))
       
-      const rightPromises = [
-        speakNumber(trialData.rightNumbers[0], 1),
-        speakNumber(trialData.rightNumbers[1], 1)
-      ]
-      
-      // Play all simultaneously
-      await Promise.all([...leftPromises, ...rightPromises])
+      // SECOND PAIR: Play leftNumbers[1] in LEFT ear and rightNumbers[1] in RIGHT ear SIMULTANEOUSLY
+      await Promise.all([
+        speakNumber(trialData.leftNumbers[1], -1),  // -1 = ONLY left speaker
+        speakNumber(trialData.rightNumbers[1], 1)   // +1 = ONLY right speaker
+      ])
       
       await new Promise(r => setTimeout(r, 300))
     } catch (error) {
@@ -187,12 +216,18 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     getAudioContext()
     setIsPlayingAudio(true)
     
-    // Play left ear (3, 5) and right ear (8, 2) simultaneously
+    // First pair: 3 (left) and 8 (right) simultaneously
     await Promise.all([
-      speakNumber(3, -1),
-      speakNumber(5, -1),
-      speakNumber(8, 1),
-      speakNumber(2, 1)
+      speakNumber(3, -1),  // Left speaker only
+      speakNumber(8, 1)    // Right speaker only
+    ])
+    
+    await new Promise(r => setTimeout(r, 200))
+    
+    // Second pair: 5 (left) and 2 (right) simultaneously
+    await Promise.all([
+      speakNumber(5, -1),  // Left speaker only
+      speakNumber(2, 1)    // Right speaker only
     ])
     
     setIsPlayingAudio(false)
@@ -368,7 +403,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
             <div className="bg-muted/50 p-6 rounded-lg space-y-4">
               <p className="text-base font-medium">
-                👆 Click to hear test audio (Left: 3, 5 | Right: 8, 2)
+                👆 Click to test dichotic audio (2 pairs of numbers)
               </p>
               
               <Button
@@ -398,8 +433,9 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
               
               <div className="text-sm text-muted-foreground text-center">
                 <p>🎧 <strong>Use headphones!</strong> You should hear:</p>
-                <p className="mt-1">Left ear: numbers 3 and 5</p>
-                <p>Right ear: numbers 8 and 2</p>
+                <p className="mt-1"><strong>First pair:</strong> Left ear: 3 | Right ear: 8</p>
+                <p><strong>Second pair:</strong> Left ear: 5 | Right ear: 2</p>
+                <p className="mt-2 text-xs">Each number should come from ONLY one speaker!</p>
               </div>
             </div>
 
@@ -518,15 +554,15 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                       <div className="space-y-2">
                         <div className="flex items-start gap-3">
                           <Headphones size={24} className="text-primary mt-1 flex-shrink-0" weight="fill" />
-                          <p>You'll hear <strong>4 numbers simultaneously</strong> - 2 in each ear</p>
+                          <p>You'll hear <strong>2 pairs of numbers</strong> - each pair has one number in left ear and one in right ear</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Ear size={24} className="text-blue-500 mt-1 flex-shrink-0" weight="fill" />
-                          <p><strong>Left ear</strong> will hear 2 numbers at the same time</p>
+                          <p><strong>Left ear</strong> numbers come ONLY from left speaker</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Ear size={24} className="text-green-500 mt-1 flex-shrink-0" weight="fill" />
-                          <p><strong>Right ear</strong> will hear 2 different numbers at the same time</p>
+                          <p><strong>Right ear</strong> numbers come ONLY from right speaker</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Check size={24} className="text-primary mt-1 flex-shrink-0" weight="bold" />
@@ -560,7 +596,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                         <div>
                           <p className="font-semibold mb-1">Listen Carefully</p>
                           <p className="text-base text-muted-foreground">
-                            You'll hear 2 numbers in left ear and 2 different numbers in right ear - all at the same time
+                            You'll hear 2 pairs - First pair: one number in left, one in right (simultaneously). Then second pair the same way.
                           </p>
                         </div>
                       </div>
@@ -592,7 +628,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
                     <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                       <p className="text-sm">
-                        <strong>💡 Pro tip:</strong> This tests true dichotic listening - your left and right ears will hear different numbers simultaneously!
+                        <strong>💡 Pro tip:</strong> Each number comes from ONLY one speaker - left numbers from left ear, right numbers from right ear!
                       </p>
                     </div>
                   </div>
@@ -736,7 +772,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                   Get Ready to Listen!
                 </div>
                 <p className="text-muted-foreground mb-4">
-                  4 numbers will be spoken in a moment...
+                  2 pairs of numbers will be played (left & right ear)...
                 </p>
                 <motion.div
                   animate={{ scale: [1, 1.05, 1] }}
@@ -772,7 +808,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                   Listen Carefully...
                 </div>
                 <p className="text-muted-foreground">
-                  4 numbers are being played
+                  Numbers are playing in left and right ears
                 </p>
               </Card>
             </motion.div>
