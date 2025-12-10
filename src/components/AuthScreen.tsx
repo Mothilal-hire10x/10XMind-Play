@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Brain, EnvelopeSimple, LockKey, Sparkle, CircleNotch } from '@phosphor-icons/react'
+import { Brain, EnvelopeSimple, LockKey, Sparkle, CircleNotch, Eye, EyeSlash, User, Calendar, IdentificationCard } from '@phosphor-icons/react'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
@@ -92,6 +92,7 @@ export function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [rollNo, setRollNo] = useState('')
   const [name, setName] = useState('')
   const [dob, setDob] = useState('')
@@ -215,95 +216,155 @@ export function AuthScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
-          <Card className="shadow-2xl sm:shadow-2xl border border-border/50 sm:border-2 backdrop-blur-sm bg-card/95 overflow-hidden">
+          <Card className="shadow-2xl sm:shadow-2xl border border-border/50 sm:border-2 backdrop-blur-sm bg-card/95 overflow-hidden relative">
             {/* Shimmer effect on card */}
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" style={{ animationDelay: '1s' }} />
-            <CardHeader className="space-y-1 sm:space-y-1.5 p-4 sm:p-6 relative">
-              <CardTitle className="text-xl sm:text-2xl">{isLogin ? 'Welcome Back' : 'Create Account'}</CardTitle>
-              <CardDescription className="text-sm sm:text-base">
-                {isLogin ? 'Sign in to continue your training' : 'Start your cognitive training journey'}
-              </CardDescription>
+            
+            {/* Decorative gradient line */}
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-blue-600 to-purple-600" />
+            
+            <CardHeader className="space-y-1 sm:space-y-1.5 p-4 sm:p-6 pt-6 sm:pt-8 relative">
+              <motion.div
+                key={isLogin ? 'login' : 'signup'}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <CardTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">
+                  {isLogin ? 'Welcome Back! 👋' : 'Create Your Account 🚀'}
+                </CardTitle>
+                <CardDescription className="text-sm sm:text-base mt-1.5">
+                  {isLogin ? 'Sign in to continue your cognitive training' : 'Start your journey to enhanced cognitive abilities'}
+                </CardDescription>
+              </motion.div>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
               <form onSubmit={handleSubmit} className="flex flex-col gap-3 sm:gap-4">
                 {!isLogin && (
-                  <>
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="space-y-3 sm:space-y-4"
+                  >
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="rollNo">
+                      <Label htmlFor="rollNo" className="flex items-center gap-2">
+                        <IdentificationCard size={16} weight="duotone" className="text-primary" />
                         Roll Number *
                       </Label>
-                      <Input
-                        id="rollNo"
-                        type="text"
-                        value={rollNo}
-                        onChange={(e) => setRollNo(e.target.value)}
-                        placeholder="Enter your roll number"
-                        className="transition-all focus:border-primary"
-                        required={!isLogin}
-                      />
+                      <div className="relative group">
+                        <Input
+                          id="rollNo"
+                          type="text"
+                          value={rollNo}
+                          onChange={(e) => setRollNo(e.target.value)}
+                          placeholder="Enter your roll number"
+                          className="transition-all focus:border-primary pr-10 group-hover:border-primary/50"
+                          required={!isLogin}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          <IdentificationCard size={18} weight="duotone" />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="name">
+                      <Label htmlFor="name" className="flex items-center gap-2">
+                        <User size={16} weight="duotone" className="text-primary" />
                         Full Name *
                       </Label>
-                      <Input
-                        id="name"
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="Enter your full name"
-                        className="transition-all focus:border-primary"
-                        required={!isLogin}
-                      />
+                      <div className="relative group">
+                        <Input
+                          id="name"
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Enter your full name"
+                          className="transition-all focus:border-primary pr-10 group-hover:border-primary/50"
+                          required={!isLogin}
+                        />
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          <User size={18} weight="duotone" />
+                        </div>
+                      </div>
                     </div>
 
                     <div className="flex flex-col gap-2">
-                      <Label htmlFor="dob">
+                      <Label htmlFor="dob" className="flex items-center gap-2">
+                        <Calendar size={16} weight="duotone" className="text-primary" />
                         Date of Birth *
                       </Label>
-                      <Input
-                        id="dob"
-                        type="date"
-                        value={dob}
-                        onChange={(e) => setDob(e.target.value)}
-                        className="transition-all focus:border-primary"
-                        required={!isLogin}
-                      />
+                      <div className="relative group">
+                        <Input
+                          id="dob"
+                          type="date"
+                          value={dob}
+                          onChange={(e) => setDob(e.target.value)}
+                          className="transition-all focus:border-primary group-hover:border-primary/50"
+                          required={!isLogin}
+                        />
+                      </div>
                     </div>
-                  </>
+                  </motion.div>
                 )}
 
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="email" className="flex items-center gap-2">
-                    <EnvelopeSimple size={16} weight="duotone" />
+                    <EnvelopeSimple size={16} weight="duotone" className="text-primary" />
                     Email
                   </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="transition-all focus:border-primary"
-                    required
-                  />
+                  <div className="relative group">
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="transition-all focus:border-primary pr-10 group-hover:border-primary/50"
+                      required
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                      <EnvelopeSimple size={18} weight="duotone" />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="password" className="flex items-center gap-2">
-                    <LockKey size={16} weight="duotone" />
+                    <LockKey size={16} weight="duotone" className="text-primary" />
                     Password
                   </Label>
-                  <Input
-                    id="password"
-                    type="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="transition-all focus:border-primary"
-                    required
-                  />
+                  <div className="relative group">
+                    <Input
+                      id="password"
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="transition-all focus:border-primary pr-10 group-hover:border-primary/50"
+                      required
+                    />
+                    <motion.button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <EyeSlash size={18} weight="duotone" />
+                      ) : (
+                        <Eye size={18} weight="duotone" />
+                      )}
+                    </motion.button>
+                  </div>
+                  {!isLogin && (
+                    <p className="text-xs text-muted-foreground">
+                      Password must be at least 6 characters
+                    </p>
+                  )}
                 </div>
 
                 {error && (
