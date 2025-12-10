@@ -67,42 +67,24 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     }
   }, [])
 
-  // Generate TTS audio with stereo separation
+  // Generate audio tone ONLY in specified ear (no speech synthesis to avoid both speakers)
   const speakNumber = useCallback(async (number: number, pan: number): Promise<void> => {
     return new Promise((resolve) => {
       try {
         const ctx = getAudioContext()
         
-        // Use Web Speech API to generate audio
-        if ('speechSynthesis' in window) {
-          const utterance = new SpeechSynthesisUtterance(number.toString())
-          const voices = speechSynthesis.getVoices()
-          
-          const englishVoice = voices.find(v => v.lang.startsWith('en'))
-          if (englishVoice) {
-            utterance.voice = englishVoice
+        // Create THREE beeps representing the number
+        // This creates a distinctive pattern for each number
+        const playBeeps = async () => {
+          for (let i = 0; i < number; i++) {
+            await playToneInEar(ctx, 600, pan, 0.15)
+            if (i < number - 1) {
+              await new Promise(r => setTimeout(r, 100))
+            }
           }
-          
-          utterance.rate = 1.0
-          utterance.volume = 1.0
-          utterance.pitch = 1.0
-          utterance.lang = 'en-US'
-
-          // Unfortunately, Web Speech API doesn't support stereo panning directly
-          // So we'll use audio tones with clear stereo separation
-          utterance.onend = () => {
-            // Play a distinctive tone ONLY in the specified ear
-            playToneInEar(ctx, number, pan).then(resolve)
-          }
-          utterance.onerror = () => {
-            playToneInEar(ctx, number, pan).then(resolve)
-          }
-
-          speechSynthesis.speak(utterance)
-        } else {
-          // Fallback to tone only
-          playToneInEar(ctx, number, pan).then(resolve)
         }
+        
+        playBeeps().then(resolve)
       } catch (error) {
         console.error('Audio error:', error)
         resolve()
@@ -110,45 +92,37 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     })
   }, [getAudioContext])
 
-  // Play a tone ONLY in specified ear (true stereo separation)
-  const playToneInEar = useCallback((ctx: AudioContext, number: number, pan: number): Promise<void> => {
+  // Play a single beep tone ONLY in specified ear
+  const playToneInEar = useCallback((ctx: AudioContext, freq: number, pan: number, duration: number): Promise<void> => {
     return new Promise((resolve) => {
       try {
-        // Create oscillator for number tone
         const osc = ctx.createOscillator()
         const gainNode = ctx.createGain()
         const panner = ctx.createStereoPanner()
         
-        // Frequency based on number (each number gets unique tone)
-        const frequencies: Record<number, number> = {
-          1: 262, 2: 294, 3: 330, 4: 349, 5: 392,
-          6: 440, 8: 494, 9: 523, 10: 587
-        }
-        const freq = frequencies[number] || 440
-        
         osc.frequency.setValueAtTime(freq, ctx.currentTime)
         osc.type = 'sine'
         
-        // CRITICAL: Set pan to -1 (full left) or +1 (full right)
-        // This ensures sound comes from ONLY one speaker
+        // CRITICAL: Full stereo separation
+        // pan = -1 means 100% LEFT speaker, 0% RIGHT speaker
+        // pan = +1 means 0% LEFT speaker, 100% RIGHT speaker
         panner.pan.setValueAtTime(pan, ctx.currentTime)
         
-        // Envelope for smooth sound
+        // Quick envelope
         gainNode.gain.setValueAtTime(0, ctx.currentTime)
-        gainNode.gain.linearRampToValueAtTime(0.4, ctx.currentTime + 0.05)
-        gainNode.gain.setValueAtTime(0.4, ctx.currentTime + 0.4)
-        gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.6)
+        gainNode.gain.linearRampToValueAtTime(0.5, ctx.currentTime + 0.01)
+        gainNode.gain.setValueAtTime(0.5, ctx.currentTime + duration - 0.01)
+        gainNode.gain.linearRampToValueAtTime(0, ctx.currentTime + duration)
         
-        // Connect: oscillator -> gain -> panner -> output
+        // Chain: oscillator -> gain -> STEREO PANNER -> output
         osc.connect(gainNode)
         gainNode.connect(panner)
         panner.connect(ctx.destination)
         
         osc.start(ctx.currentTime)
-        osc.stop(ctx.currentTime + 0.6)
+        osc.stop(ctx.currentTime + duration)
         
-        osc.onended = () => resolve()
-        setTimeout(resolve, 700)
+        setTimeout(resolve, duration * 1000 + 10)
       } catch (error) {
         console.error('Tone error:', error)
         resolve()
@@ -186,19 +160,20 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     speechSynthesis.cancel()
 
     try {
-      // FIRST PAIR: Play leftNumbers[0] in LEFT ear and rightNumbers[0] in RIGHT ear SIMULTANEOUSLY
+      // FIRST PAIR: Play leftNumbers[0] in LEFT ear (-1) and rightNumbers[0] in RIGHT ear (+1) SIMULTANEOUSLY
+      // Each number is represented by beeps (e.g., 2 = two beeps, 6 = six beeps)
       await Promise.all([
-        speakNumber(trialData.leftNumbers[0], -1),  // -1 = ONLY left speaker
-        speakNumber(trialData.rightNumbers[0], 1)   // +1 = ONLY right speaker
+        speakNumber(trialData.leftNumbers[0], -1),  // -1 = 100% LEFT speaker, 0% RIGHT
+        speakNumber(trialData.rightNumbers[0], 1)   // +1 = 0% LEFT speaker, 100% RIGHT
       ])
       
-      // Small delay between pairs
-      await new Promise(r => setTimeout(r, 200))
+      // Delay between pairs
+      await new Promise(r => setTimeout(r, 400))
       
-      // SECOND PAIR: Play leftNumbers[1] in LEFT ear and rightNumbers[1] in RIGHT ear SIMULTANEOUSLY
+      // SECOND PAIR: Play leftNumbers[1] in LEFT ear (-1) and rightNumbers[1] in RIGHT ear (+1) SIMULTANEOUSLY
       await Promise.all([
-        speakNumber(trialData.leftNumbers[1], -1),  // -1 = ONLY left speaker
-        speakNumber(trialData.rightNumbers[1], 1)   // +1 = ONLY right speaker
+        speakNumber(trialData.leftNumbers[1], -1),  // -1 = 100% LEFT speaker, 0% RIGHT
+        speakNumber(trialData.rightNumbers[1], 1)   // +1 = 0% LEFT speaker, 100% RIGHT
       ])
       
       await new Promise(r => setTimeout(r, 300))
@@ -432,10 +407,10 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
               </Button>
               
               <div className="text-sm text-muted-foreground text-center">
-                <p>🎧 <strong>Use headphones!</strong> You should hear:</p>
-                <p className="mt-1"><strong>First pair:</strong> Left ear: 3 | Right ear: 8</p>
-                <p><strong>Second pair:</strong> Left ear: 5 | Right ear: 2</p>
-                <p className="mt-2 text-xs">Each number should come from ONLY one speaker!</p>
+                <p>🎧 <strong>MUST use headphones!</strong> You should hear:</p>
+                <p className="mt-1"><strong>First pair:</strong> Left ear: 3 beeps | Right ear: 8 beeps</p>
+                <p><strong>Second pair:</strong> Left ear: 5 beeps | Right ear: 2 beeps</p>
+                <p className="mt-2 text-xs font-bold text-yellow-600">Each number = that many beeps (2 = beep-beep, 6 = beep-beep-beep-beep-beep-beep)</p>
               </div>
             </div>
 
@@ -546,7 +521,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
                   <div className="space-y-4 text-lg">
                     <p className="text-center">
-                      This test measures your ability to process multiple numbers spoken simultaneously.
+                      This test measures your ability to process auditory stimuli presented separately to each ear.
                     </p>
 
                     <div className="bg-muted/50 p-6 rounded-lg space-y-3">
@@ -554,19 +529,19 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                       <div className="space-y-2">
                         <div className="flex items-start gap-3">
                           <Headphones size={24} className="text-primary mt-1 flex-shrink-0" weight="fill" />
-                          <p>You'll hear <strong>2 pairs of numbers</strong> - each pair has one number in left ear and one in right ear</p>
+                          <p>You'll hear <strong>beep patterns</strong> - each number is represented by that many beeps (2 = beep-beep)</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Ear size={24} className="text-blue-500 mt-1 flex-shrink-0" weight="fill" />
-                          <p><strong>Left ear</strong> numbers come ONLY from left speaker</p>
+                          <p><strong>Left ear</strong> beeps come ONLY from left speaker</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Ear size={24} className="text-green-500 mt-1 flex-shrink-0" weight="fill" />
-                          <p><strong>Right ear</strong> numbers come ONLY from right speaker</p>
+                          <p><strong>Right ear</strong> beeps come ONLY from right speaker</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Check size={24} className="text-primary mt-1 flex-shrink-0" weight="bold" />
-                          <p>Select which <strong>2 numbers</strong> you heard in each ear separately</p>
+                          <p>Count the beeps in each ear and select the numbers</p>
                         </div>
                       </div>
                     </div>
@@ -574,6 +549,9 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                     <div className="border-l-4 border-blue-500 pl-4 py-2">
                       <p className="text-base">
                         <strong>Numbers used:</strong> 1, 2, 3, 4, 5, 6, 8, 9, 10 (excluding 7)
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Each number is represented by that many beeps
                       </p>
                     </div>
                   </div>
@@ -594,9 +572,9 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                           1
                         </div>
                         <div>
-                          <p className="font-semibold mb-1">Listen Carefully</p>
+                          <p className="font-semibold mb-1">Listen & Count Beeps</p>
                           <p className="text-base text-muted-foreground">
-                            You'll hear 2 pairs - First pair: one number in left, one in right (simultaneously). Then second pair the same way.
+                            You'll hear beep patterns in each ear - count how many beeps (2 beeps = number 2, 6 beeps = number 6)
                           </p>
                         </div>
                       </div>
@@ -628,7 +606,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
                     <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                       <p className="text-sm">
-                        <strong>💡 Pro tip:</strong> Each number comes from ONLY one speaker - left numbers from left ear, right numbers from right ear!
+                        <strong>💡 Pro tip:</strong> Count the beeps - left ear beeps ONLY from left speaker, right ear beeps ONLY from right speaker!
                       </p>
                     </div>
                   </div>
@@ -772,7 +750,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                   Get Ready to Listen!
                 </div>
                 <p className="text-muted-foreground mb-4">
-                  2 pairs of numbers will be played (left & right ear)...
+                  Beep patterns will play in left & right ears...
                 </p>
                 <motion.div
                   animate={{ scale: [1, 1.05, 1] }}
@@ -805,10 +783,10 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                   </div>
                 </motion.div>
                 <div className="text-2xl font-bold text-foreground mb-2">
-                  Listen Carefully...
+                  Listen & Count...
                 </div>
                 <p className="text-muted-foreground">
-                  Numbers are playing in left and right ears
+                  Beep patterns playing in left and right ears
                 </p>
               </Card>
             </motion.div>
@@ -826,7 +804,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                     What numbers did you hear?
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Select <strong>2 numbers for each ear</strong> from the choices below
+                    Count the beeps in each ear and select <strong>2 numbers for each ear</strong>
                   </p>
                   
                   <div className="flex items-center justify-center gap-4 mb-4">
@@ -957,7 +935,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
             </p>
           )}
           <p className="text-center text-sm text-muted-foreground">
-            <strong>Tip:</strong> Use headphones! Listen for which numbers come from left vs right ear! 🎧
+            <strong>Tip:</strong> Count the beeps in each ear - left ear beeps from left speaker only! 🎧
           </p>
         </div>
       </div>
