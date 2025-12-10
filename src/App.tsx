@@ -18,6 +18,7 @@ import { DigitSpanBackward } from '@/components/games/DigitSpanBackward'
 import { TrailMakingTest } from '@/components/games/TrailMakingTest'
 import { MentalRotationTest } from '@/components/games/MentalRotationTest'
 import { DichoticListeningTest } from '@/components/games/DichoticListeningTest'
+import { HandednessInventory } from '@/components/games/HandednessInventory'
 import { getGameById } from '@/lib/games'
 import { Toaster } from '@/components/ui/sonner'
 import { toast } from 'sonner'
@@ -167,6 +168,8 @@ function AppContent() {
         return <MentalRotationTest {...gameProps} />
       case 'dichotic-listening':
         return <DichoticListeningTest {...gameProps} />
+      case 'handedness-inventory':
+        return <HandednessInventory {...gameProps} />
       default:
         return null
     }
