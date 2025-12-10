@@ -762,15 +762,15 @@ export function AdminDashboard() {
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>Date & Time</TableHead>
-                              <TableHead>Student</TableHead>
-                              <TableHead>Roll No</TableHead>
-                              <TableHead>Game</TableHead>
-                              <TableHead className="text-right">Score</TableHead>
-                              <TableHead className="text-right">Accuracy</TableHead>
-                              <TableHead className="text-right">Reaction Time</TableHead>
-                              <TableHead className="text-right">Errors</TableHead>
-                              <TableHead className="text-center">Details</TableHead>
+                              <TableHead className="whitespace-nowrap">Date & Time</TableHead>
+                              <TableHead className="min-w-[150px]">Student</TableHead>
+                              <TableHead className="whitespace-nowrap">Roll No</TableHead>
+                              <TableHead className="min-w-[120px]">Game</TableHead>
+                              <TableHead className="text-right whitespace-nowrap">Score</TableHead>
+                              <TableHead className="text-right whitespace-nowrap">Accuracy</TableHead>
+                              <TableHead className="text-right whitespace-nowrap">Reaction Time</TableHead>
+                              <TableHead className="text-right whitespace-nowrap">Errors</TableHead>
+                              <TableHead className="text-center whitespace-nowrap">Details</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -785,22 +785,22 @@ export function AdminDashboard() {
                                     <TableCell className="font-medium whitespace-nowrap">
                                       {formatDateTime(result.timestamp)}
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="min-w-[150px]">
                                       <div className="flex flex-col">
-                                        <span className="font-semibold">{result.userName || student?.name || 'Unknown'}</span>
-                                        <span className="text-xs text-muted-foreground">{result.userEmail || student?.email}</span>
+                                        <span className="font-semibold break-words">{result.userName || student?.name || 'Unknown'}</span>
+                                        <span className="text-xs text-muted-foreground break-all">{result.userEmail || student?.email}</span>
                                       </div>
                                     </TableCell>
                                     <TableCell>
-                                      <Badge variant="outline">{result.userRollNo || student?.rollNo || 'N/A'}</Badge>
+                                      <Badge variant="outline" className="whitespace-nowrap">{result.userRollNo || student?.rollNo || 'N/A'}</Badge>
                                     </TableCell>
-                                    <TableCell>
+                                    <TableCell className="min-w-[120px]">
                                       <div>
-                                        <p className="font-semibold">{game?.name || result.gameId}</p>
+                                        <p className="font-semibold break-words">{game?.name || result.gameId}</p>
                                         <p className="text-xs text-muted-foreground capitalize">{game?.category}</p>
                                       </div>
                                     </TableCell>
-                                    <TableCell className="text-right font-bold text-primary">
+                                    <TableCell className="text-right font-bold text-primary whitespace-nowrap">
                                       {result.score?.toFixed(0) || 0}
                                     </TableCell>
                                     <TableCell className="text-right">
@@ -808,10 +808,10 @@ export function AdminDashboard() {
                                         {result.accuracy?.toFixed(1) || 0}%
                                       </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right text-blue-600">
+                                    <TableCell className="text-right text-blue-600 whitespace-nowrap">
                                       {result.reactionTime ? `${result.reactionTime.toFixed(0)}ms` : 'N/A'}
                                     </TableCell>
-                                    <TableCell className="text-right text-red-600">
+                                    <TableCell className="text-right text-red-600 whitespace-nowrap">
                                       {result.errorCount || 0}
                                     </TableCell>
                                     <TableCell className="text-center">
@@ -1233,15 +1233,15 @@ export function AdminDashboard() {
 
       {/* Student Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-6xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-2xl">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center">
-                <UserIcon size={24} weight="bold" className="text-primary-foreground" />
+            <DialogTitle className="flex items-start gap-3 text-xl sm:text-2xl">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-primary to-blue-600 flex items-center justify-center flex-shrink-0">
+                <UserIcon size={20} weight="bold" className="text-primary-foreground sm:w-6 sm:h-6" />
               </div>
-              <div>
-                <div>{selectedStudentDetails?.email}</div>
-                <DialogDescription className="mt-1">
+              <div className="min-w-0 flex-1">
+                <div className="break-words">{selectedStudentDetails?.email}</div>
+                <DialogDescription className="mt-1 text-xs sm:text-sm">
                   Complete performance overview and game history
                 </DialogDescription>
               </div>
@@ -1261,21 +1261,21 @@ export function AdminDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     {/* Personal Details */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pb-4 border-b">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-4 border-b">
                       <div className="space-y-1">
                         <p className="text-xs text-muted-foreground">Email</p>
-                        <p className="font-semibold">{selectedStudentDetails.email}</p>
+                        <p className="font-semibold break-words">{selectedStudentDetails.email}</p>
                       </div>
                       {selectedStudentDetails.name && (
                         <div className="space-y-1">
                           <p className="text-xs text-muted-foreground">Name</p>
-                          <p className="font-semibold">{selectedStudentDetails.name}</p>
+                          <p className="font-semibold break-words">{selectedStudentDetails.name}</p>
                         </div>
                       )}
                       {selectedStudentDetails.rollNo && (
                         <div className="space-y-1">
                           <p className="text-xs text-muted-foreground">Roll Number</p>
-                          <p className="font-semibold">{selectedStudentDetails.rollNo}</p>
+                          <p className="font-semibold break-words">{selectedStudentDetails.rollNo}</p>
                         </div>
                       )}
                       {selectedStudentDetails.dob && (
@@ -1293,26 +1293,26 @@ export function AdminDashboard() {
                     </div>
 
                     {/* Activity Stats */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                        <CalendarBlank size={24} className="text-primary" />
-                        <div>
+                        <CalendarBlank size={24} className="text-primary flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs text-muted-foreground">Registration Date</p>
-                          <p className="font-semibold">{formatDate(selectedStudentDetails.createdAt)}</p>
+                          <p className="font-semibold break-words">{formatDate(selectedStudentDetails.createdAt)}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                        <Trophy size={24} className="text-blue-600" />
-                        <div>
+                        <Trophy size={24} className="text-blue-600 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs text-muted-foreground">Total Games</p>
-                          <p className="font-semibold">{getStudentGameResults(selectedStudentDetails.id).length}</p>
+                          <p className="font-semibold break-words">{getStudentGameResults(selectedStudentDetails.id).length}</p>
                         </div>
                       </div>
                       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
-                        <Clock size={24} className="text-green-600" />
-                        <div>
+                        <Clock size={24} className="text-green-600 flex-shrink-0" />
+                        <div className="min-w-0 flex-1">
                           <p className="text-xs text-muted-foreground">Last Activity</p>
-                          <p className="font-semibold">
+                          <p className="font-semibold break-words">
                             {getStudentGameResults(selectedStudentDetails.id).length > 0
                               ? formatDate(Math.max(...getStudentGameResults(selectedStudentDetails.id).map(r => r.timestamp)))
                               : 'No activity yet'}
@@ -1367,7 +1367,7 @@ export function AdminDashboard() {
                 return (
                   <>
                     {/* Overall Stats Cards */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                       <Card className="border-2">
                         <CardHeader className="pb-3">
                           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -1433,15 +1433,15 @@ export function AdminDashboard() {
                             if (!item) return null
                             return (
                               <div key={item.game.id} className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <div>
-                                    <h4 className="font-semibold text-lg">{item.game.name}</h4>
-                                    <p className="text-sm text-muted-foreground">{item.game.description}</p>
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                  <div className="min-w-0 flex-1">
+                                    <h4 className="font-semibold text-base sm:text-lg break-words">{item.game.name}</h4>
+                                    <p className="text-xs sm:text-sm text-muted-foreground break-words">{item.game.description}</p>
                                   </div>
-                                  <Badge variant="outline">{item.count} plays</Badge>
+                                  <Badge variant="outline" className="self-start sm:self-center flex-shrink-0">{item.count} plays</Badge>
                                 </div>
                                 
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                                   <div className="p-3 rounded-lg bg-primary/5">
                                     <p className="text-xs text-muted-foreground mb-1">Avg Score</p>
                                     <p className="text-xl font-bold text-primary">{item.avgScore.toFixed(0)}</p>
@@ -1476,7 +1476,7 @@ export function AdminDashboard() {
                         <CardDescription>All {studentResults.length} game sessions</CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="rounded-md border">
+                        <div className="rounded-md border overflow-x-auto">
                           <Table>
                             <TableHeader>
                               <TableRow>
@@ -1552,15 +1552,15 @@ export function AdminDashboard() {
 
       {/* Result Details Dialog */}
       <Dialog open={showResultDetailsDialog} onOpenChange={setShowResultDetailsDialog}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-3 text-xl">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center">
+            <DialogTitle className="flex items-start gap-3 text-lg sm:text-xl">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
                 <ChartBar size={20} weight="bold" className="text-white" />
               </div>
-              <div>
-                <div>Game Result Details</div>
-                <DialogDescription className="mt-1">
+              <div className="min-w-0 flex-1">
+                <div className="break-words">Game Result Details</div>
+                <DialogDescription className="mt-1 text-xs sm:text-sm">
                   Complete breakdown of this game session
                 </DialogDescription>
               </div>
@@ -1574,24 +1574,24 @@ export function AdminDashboard() {
             return (
               <div className="space-y-6 mt-4">
                 {/* Basic Info */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <Card className="p-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                  <Card className="p-3 sm:p-4">
                     <p className="text-xs text-muted-foreground mb-1">Student</p>
-                    <p className="font-semibold">{selectedResultDetails.userName || student?.name || 'Unknown'}</p>
-                    <p className="text-xs text-muted-foreground">{selectedResultDetails.userEmail || student?.email}</p>
+                    <p className="font-semibold text-sm break-words">{selectedResultDetails.userName || student?.name || 'Unknown'}</p>
+                    <p className="text-xs text-muted-foreground break-all">{selectedResultDetails.userEmail || student?.email}</p>
                   </Card>
-                  <Card className="p-4">
+                  <Card className="p-3 sm:p-4">
                     <p className="text-xs text-muted-foreground mb-1">Roll Number</p>
-                    <p className="font-semibold">{selectedResultDetails.userRollNo || student?.rollNo || 'N/A'}</p>
+                    <p className="font-semibold text-sm break-words">{selectedResultDetails.userRollNo || student?.rollNo || 'N/A'}</p>
                   </Card>
-                  <Card className="p-4">
+                  <Card className="p-3 sm:p-4">
                     <p className="text-xs text-muted-foreground mb-1">Game</p>
-                    <p className="font-semibold">{game?.name || selectedResultDetails.gameId}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{game?.category}</p>
+                    <p className="font-semibold text-sm break-words">{game?.name || selectedResultDetails.gameId}</p>
+                    <p className="text-xs text-muted-foreground capitalize break-words">{game?.category}</p>
                   </Card>
-                  <Card className="p-4">
+                  <Card className="p-3 sm:p-4">
                     <p className="text-xs text-muted-foreground mb-1">Date & Time</p>
-                    <p className="font-semibold">{formatDateTime(selectedResultDetails.timestamp)}</p>
+                    <p className="font-semibold text-sm break-words">{formatDateTime(selectedResultDetails.timestamp)}</p>
                   </Card>
                 </div>
 
@@ -1604,33 +1604,109 @@ export function AdminDashboard() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      <div className="text-center p-4 bg-primary/10 rounded-lg">
-                        <p className="text-3xl font-bold text-primary">{selectedResultDetails.score?.toFixed(0) || 0}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                      <div className="text-center p-3 sm:p-4 bg-primary/10 rounded-lg">
+                        <p className="text-2xl sm:text-3xl font-bold text-primary break-words">{selectedResultDetails.score?.toFixed(0) || 0}</p>
                         <p className="text-xs text-muted-foreground">Score</p>
                       </div>
-                      <div className="text-center p-4 bg-green-500/10 rounded-lg">
-                        <p className="text-3xl font-bold text-green-600">{selectedResultDetails.accuracy?.toFixed(1) || 0}%</p>
+                      <div className="text-center p-3 sm:p-4 bg-green-500/10 rounded-lg">
+                        <p className="text-2xl sm:text-3xl font-bold text-green-600 break-words">{selectedResultDetails.accuracy?.toFixed(1) || 0}%</p>
                         <p className="text-xs text-muted-foreground">Accuracy</p>
                       </div>
-                      <div className="text-center p-4 bg-blue-500/10 rounded-lg">
-                        <p className="text-3xl font-bold text-blue-600">{selectedResultDetails.reactionTime?.toFixed(0) || 'N/A'}</p>
+                      <div className="text-center p-3 sm:p-4 bg-blue-500/10 rounded-lg">
+                        <p className="text-2xl sm:text-3xl font-bold text-blue-600 break-words">{selectedResultDetails.reactionTime?.toFixed(0) || 'N/A'}</p>
                         <p className="text-xs text-muted-foreground">Reaction Time (ms)</p>
                       </div>
-                      <div className="text-center p-4 bg-red-500/10 rounded-lg">
-                        <p className="text-3xl font-bold text-red-600">{selectedResultDetails.errorCount || 0}</p>
+                      <div className="text-center p-3 sm:p-4 bg-red-500/10 rounded-lg">
+                        <p className="text-2xl sm:text-3xl font-bold text-red-600 break-words">{selectedResultDetails.errorCount || 0}</p>
                         <p className="text-xs text-muted-foreground">Errors</p>
                       </div>
-                      <div className="text-center p-4 bg-orange-500/10 rounded-lg">
-                        <p className="text-3xl font-bold text-orange-600">{selectedResultDetails.errorRate?.toFixed(1) || 0}%</p>
+                      <div className="text-center p-3 sm:p-4 bg-orange-500/10 rounded-lg">
+                        <p className="text-2xl sm:text-3xl font-bold text-orange-600 break-words">{selectedResultDetails.errorRate?.toFixed(1) || 0}%</p>
                         <p className="text-xs text-muted-foreground">Error Rate</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
 
+                {/* Handedness Inventory Specific Display */}
+                {selectedResultDetails.gameId === 'handedness-inventory' && selectedResultDetails.details?.responses && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Brain size={20} className="text-purple-500" />
+                        Handedness Assessment Results
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {/* Summary Cards */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                        <Card className="p-3 sm:p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
+                          <p className="text-xs text-muted-foreground mb-1">Laterality Quotient</p>
+                          <p className="text-2xl sm:text-3xl font-bold text-blue-600 break-words">{selectedResultDetails.details.lateralityQuotient}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Range: -100 to +100</p>
+                        </Card>
+                        <Card className="p-3 sm:p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
+                          <p className="text-xs text-muted-foreground mb-1">Handedness</p>
+                          <p className="text-xl sm:text-2xl font-bold text-purple-600 break-words">{selectedResultDetails.details.handedness}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Classification</p>
+                        </Card>
+                        <Card className="p-3 sm:p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
+                          <p className="text-xs text-muted-foreground mb-1">Total Score</p>
+                          <p className="text-2xl sm:text-3xl font-bold text-green-600 break-words">{selectedResultDetails.details.totalScore}/{selectedResultDetails.details.maxScore}</p>
+                          <p className="text-xs text-muted-foreground mt-1">Raw Score</p>
+                        </Card>
+                      </div>
+
+                      {/* Response Table */}
+                      <div className="rounded-md border overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="min-w-[120px]">Activity</TableHead>
+                              <TableHead className="text-center">Preference</TableHead>
+                              <TableHead className="text-right">Score</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedResultDetails.details.responses.map((resp: any, idx: number) => (
+                              <TableRow key={idx}>
+                                <TableCell className="font-medium break-words">{resp.activity}</TableCell>
+                                <TableCell className="text-center">
+                                  <Badge 
+                                    variant={
+                                      resp.score === 2 ? "default" : 
+                                      resp.score === 1 ? "secondary" : 
+                                      resp.score === 0 ? "outline" :
+                                      resp.score === -1 ? "secondary" : "default"
+                                    }
+                                    className={
+                                      resp.score > 0 ? "bg-blue-600 text-xs" :
+                                      resp.score < 0 ? "bg-orange-600 text-xs" : "text-xs"
+                                    }
+                                  >
+                                    {resp.response}
+                                  </Badge>
+                                </TableCell>
+                                <TableCell className="text-right font-mono">
+                                  <span className={
+                                    resp.score > 0 ? "text-blue-600" :
+                                    resp.score < 0 ? "text-orange-600" : "text-muted-foreground"
+                                  }>
+                                    {resp.score > 0 ? '+' : ''}{resp.score}
+                                  </span>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
                 {/* Game-Specific Details */}
-                {selectedResultDetails.details && Object.keys(selectedResultDetails.details).length > 0 && (
+                {selectedResultDetails.details && Object.keys(selectedResultDetails.details).length > 0 && selectedResultDetails.gameId !== 'handedness-inventory' && (
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-lg flex items-center gap-2">
@@ -1639,15 +1715,15 @@ export function AdminDashboard() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                         {Object.entries(selectedResultDetails.details)
                           .filter(([key]) => key !== 'trials' && key !== 'customMessage')
                           .map(([key, value]) => (
                             <div key={key} className="p-3 bg-muted/50 rounded-lg">
-                              <p className="text-xs text-muted-foreground capitalize mb-1">
+                              <p className="text-xs text-muted-foreground capitalize mb-1 break-words">
                                 {key.replace(/([A-Z])/g, ' $1').replace(/^./, str => str.toUpperCase())}
                               </p>
-                              <p className="font-semibold">
+                              <p className="font-semibold break-words">
                                 {typeof value === 'number' 
                                   ? (Number.isInteger(value) ? value : value.toFixed(2))
                                   : String(value)}
@@ -1663,30 +1739,30 @@ export function AdminDashboard() {
                 {selectedResultDetails.details?.trials && Array.isArray(selectedResultDetails.details.trials) && (
                   <Card>
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Database size={20} className="text-blue-500" />
-                        Trial Data ({selectedResultDetails.details.trials.length} trials)
+                      <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                        <Database size={20} className="text-blue-500 flex-shrink-0" />
+                        <span className="break-words">Trial Data ({selectedResultDetails.details.trials.length} trials)</span>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="rounded-md border max-h-[300px] overflow-y-auto">
+                      <div className="rounded-md border max-h-[300px] overflow-auto">
                         <Table>
                           <TableHeader>
                             <TableRow>
-                              <TableHead>#</TableHead>
-                              <TableHead>Stimulus</TableHead>
-                              <TableHead>Response</TableHead>
+                              <TableHead className="sticky left-0 bg-background">#</TableHead>
+                              <TableHead className="min-w-[100px]">Stimulus</TableHead>
+                              <TableHead className="min-w-[100px]">Response</TableHead>
                               <TableHead className="text-center">Correct</TableHead>
-                              <TableHead className="text-right">RT (ms)</TableHead>
-                              <TableHead>Type</TableHead>
+                              <TableHead className="text-right whitespace-nowrap">RT (ms)</TableHead>
+                              <TableHead className="min-w-[80px]">Type</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
                             {selectedResultDetails.details.trials.slice(0, 50).map((trial: any, idx: number) => (
                               <TableRow key={idx}>
-                                <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
-                                <TableCell className="font-mono text-xs">{trial.stimulus || 'N/A'}</TableCell>
-                                <TableCell className="font-mono text-xs">{trial.response || 'N/A'}</TableCell>
+                                <TableCell className="font-mono text-xs sticky left-0 bg-background">{idx + 1}</TableCell>
+                                <TableCell className="font-mono text-xs break-all">{trial.stimulus || 'N/A'}</TableCell>
+                                <TableCell className="font-mono text-xs break-all">{trial.response || 'N/A'}</TableCell>
                                 <TableCell className="text-center">
                                   {trial.correct ? (
                                     <CheckCircle size={16} className="text-green-600 inline" />
@@ -1694,11 +1770,11 @@ export function AdminDashboard() {
                                     <XCircle size={16} className="text-red-600 inline" />
                                   )}
                                 </TableCell>
-                                <TableCell className="text-right font-mono text-xs">
+                                <TableCell className="text-right font-mono text-xs whitespace-nowrap">
                                   {trial.reactionTime?.toFixed(0) || 'N/A'}
                                 </TableCell>
                                 <TableCell className="text-xs">
-                                  <Badge variant="outline" className="text-xs">
+                                  <Badge variant="outline" className="text-xs whitespace-nowrap">
                                     {trial.trialType || 'standard'}
                                   </Badge>
                                 </TableCell>
