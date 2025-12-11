@@ -46,7 +46,6 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
   
   const audioContextRef = useRef<AudioContext | null>(null)
   const audioBuffersRef = useRef<Map<number, AudioBuffer>>(new Map())
-  const isGeneratingAudioRef = useRef(false)
 
   // Get or create AudioContext
   const getAudioContext = useCallback(() => {
@@ -59,132 +58,75 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     return audioContextRef.current
   }, [])
 
+  // Load audio files for all numbers
+  const loadAudioFiles = useCallback(async () => {
+    const ctx = getAudioContext()
+    
+    for (const num of AVAILABLE_NUMBERS) {
+      if (!audioBuffersRef.current.has(num)) {
+        try {
+          const response = await fetch(`/audio/numbers/${num}.mp3`)
+          const arrayBuffer = await response.arrayBuffer()
+          const audioBuffer = await ctx.decodeAudioData(arrayBuffer)
+          audioBuffersRef.current.set(num, audioBuffer)
+        } catch (error) {
+          console.error(`Failed to load audio for number ${num}:`, error)
+        }
+      }
+    }
+  }, [getAudioContext])
+
+  // Preload audio files when component mounts
+  useEffect(() => {
+    loadAudioFiles()
+  }, [loadAudioFiles])
+
   // Cleanup
   useEffect(() => {
     return () => {
       if (audioContextRef.current) {
         audioContextRef.current.close()
       }
-      window.speechSynthesis?.cancel()
     }
   }, [])
 
-  // Pre-generate audio buffers for all numbers using offline audio context
-  const generateAudioBuffer = useCallback(async (number: number): Promise<AudioBuffer | null> => {
-    try {
-      // Check if already generated
-      if (audioBuffersRef.current.has(number)) {
-        return audioBuffersRef.current.get(number)!
-      }
-
-      return new Promise((resolve) => {
-        if (!('speechSynthesis' in window)) {
-          resolve(null)
-          return
-        }
-
-        const utterance = new SpeechSynthesisUtterance(number.toString())
-        const voices = speechSynthesis.getVoices()
-        
-        const englishVoice = voices.find(v => v.lang.startsWith('en'))
-        if (englishVoice) {
-          utterance.voice = englishVoice
-        }
-        
-        utterance.rate = 1.0
-        utterance.volume = 1.0
-        utterance.pitch = 1.0
-        utterance.lang = 'en-US'
-
-        // We'll use MediaRecorder to capture the speech output
-        // But since that's complex, we'll use a simpler approach:
-        // Generate offline and capture as audio buffer
-        
-        // For now, use a hybrid: play silent speech and use tone for stereo
-        resolve(null)
-      })
-    } catch (error) {
-      console.error('Audio generation error:', error)
-      return null
-    }
-  }, [])
-
-  // Speak number with proper stereo separation
+  // Speak number with proper stereo separation using pre-loaded audio files
   const speakNumber = useCallback(async (number: number, pan: number): Promise<void> => {
     return new Promise(async (resolve) => {
       try {
         const ctx = getAudioContext()
+        const audioBuffer = audioBuffersRef.current.get(number)
         
-        // Create a simple synthesized voice using oscillators
-        // This creates a speech-like sound that can be stereo panned
-        await playSynthesizedNumber(ctx, number, pan)
-        resolve()
+        if (!audioBuffer) {
+          console.error(`Audio buffer not found for number ${number}`)
+          resolve()
+          return
+        }
+
+        // Create source from the audio buffer
+        const source = ctx.createBufferSource()
+        source.buffer = audioBuffer
+        
+        // Create stereo panner for left (-1) or right (+1) ear separation
+        const panner = ctx.createStereoPanner()
+        panner.pan.setValueAtTime(pan, ctx.currentTime)
+        
+        // Connect: source -> panner -> destination
+        source.connect(panner)
+        panner.connect(ctx.destination)
+        
+        // Play the audio
+        source.start(ctx.currentTime)
+        
+        // Resolve when audio finishes playing
+        source.onended = () => resolve()
+        
       } catch (error) {
-        console.error('Audio error:', error)
+        console.error('Audio playback error:', error)
         resolve()
       }
     })
   }, [getAudioContext])
-
-  // Create synthesized speech-like sound for numbers
-  const playSynthesizedNumber = useCallback((ctx: AudioContext, number: number, pan: number): Promise<void> => {
-    return new Promise((resolve) => {
-      try {
-        // Create a simple melody pattern that represents the number
-        // Using different frequencies to make it sound more natural
-        const patterns: Record<number, number[]> = {
-          1: [440],
-          2: [440, 554],
-          3: [440, 554, 659],
-          4: [440, 554, 659, 523],
-          5: [523, 659, 784, 659, 523],
-          6: [659, 784, 880, 784, 659, 523],
-          8: [523, 659, 784, 880, 784, 659, 523, 440],
-          9: [440, 523, 659, 784, 880, 784, 659, 523, 440],
-          10: [440, 554, 659, 784, 880, 1047, 880, 784, 659, 554]
-        }
-        
-        const pattern = patterns[number] || [440]
-        const noteDuration = 0.12
-        let currentTime = ctx.currentTime
-        
-        const playNote = (freq: number, startTime: number) => {
-          const osc = ctx.createOscillator()
-          const gainNode = ctx.createGain()
-          const panner = ctx.createStereoPanner()
-          
-          osc.frequency.setValueAtTime(freq, startTime)
-          osc.type = 'triangle' // Softer than sine
-          
-          // CRITICAL: Stereo separation
-          panner.pan.setValueAtTime(pan, startTime)
-          
-          // Envelope
-          gainNode.gain.setValueAtTime(0, startTime)
-          gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.01)
-          gainNode.gain.setValueAtTime(0.3, startTime + noteDuration - 0.02)
-          gainNode.gain.linearRampToValueAtTime(0, startTime + noteDuration)
-          
-          osc.connect(gainNode)
-          gainNode.connect(panner)
-          panner.connect(ctx.destination)
-          
-          osc.start(startTime)
-          osc.stop(startTime + noteDuration)
-        }
-        
-        pattern.forEach((freq, index) => {
-          playNote(freq, currentTime + (index * (noteDuration + 0.05)))
-        })
-        
-        const totalDuration = pattern.length * (noteDuration + 0.05) + 0.1
-        setTimeout(resolve, totalDuration * 1000)
-      } catch (error) {
-        console.error('Synthesis error:', error)
-        resolve()
-      }
-    })
-  }, [])
 
   // Generate random trial data
   const generateTrialData = useCallback((): TrialData => {
@@ -213,7 +155,6 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
     if (!trialData || isPlayingAudio) return
     
     setIsPlayingAudio(true)
-    speechSynthesis.cancel()
 
     try {
       // FIRST PAIR: Play leftNumbers[0] in LEFT ear (-1) and rightNumbers[0] in RIGHT ear (+1) SIMULTANEOUSLY
@@ -584,19 +525,19 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                       <div className="space-y-2">
                         <div className="flex items-start gap-3">
                           <Headphones size={24} className="text-primary mt-1 flex-shrink-0" weight="fill" />
-                          <p>You'll hear <strong>beep patterns</strong> - each number is represented by that many beeps (2 = beep-beep)</p>
+                          <p>You'll hear <strong>spoken numbers</strong> (like "ONE", "TWO", "FOUR") in each ear</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Ear size={24} className="text-blue-500 mt-1 flex-shrink-0" weight="fill" />
-                          <p><strong>Left ear</strong> beeps come ONLY from left speaker</p>
+                          <p><strong>Left ear</strong> numbers come ONLY from left speaker</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Ear size={24} className="text-green-500 mt-1 flex-shrink-0" weight="fill" />
-                          <p><strong>Right ear</strong> beeps come ONLY from right speaker</p>
+                          <p><strong>Right ear</strong> numbers come ONLY from right speaker</p>
                         </div>
                         <div className="flex items-start gap-3">
                           <Check size={24} className="text-primary mt-1 flex-shrink-0" weight="bold" />
-                          <p>Count the beeps in each ear and select the numbers</p>
+                          <p>Listen carefully and select which numbers you heard in each ear</p>
                         </div>
                       </div>
                     </div>
@@ -606,7 +547,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                         <strong>Numbers used:</strong> 1, 2, 3, 4, 5, 6, 8, 9, 10 (excluding 7)
                       </p>
                       <p className="text-sm text-muted-foreground mt-1">
-                        Each number is represented by that many beeps
+                        You'll hear the actual spoken words ("ONE", "TWO", etc.)
                       </p>
                     </div>
                   </div>
@@ -627,9 +568,9 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
                           1
                         </div>
                         <div>
-                          <p className="font-semibold mb-1">Listen & Count Beeps</p>
+                          <p className="font-semibold mb-1">Listen to Numbers</p>
                           <p className="text-base text-muted-foreground">
-                            You'll hear beep patterns in each ear - count how many beeps (2 beeps = number 2, 6 beeps = number 6)
+                            You'll hear spoken numbers (like "TWO", "SIX") - different numbers in each ear simultaneously
                           </p>
                         </div>
                       </div>
@@ -661,7 +602,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
 
                     <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">
                       <p className="text-sm">
-                        <strong>💡 Pro tip:</strong> Count the beeps - left ear beeps ONLY from left speaker, right ear beeps ONLY from right speaker!
+                        <strong>💡 Pro tip:</strong> Focus on one ear at a time - left ear numbers come ONLY from left speaker, right ear numbers ONLY from right speaker!
                       </p>
                     </div>
                   </div>
