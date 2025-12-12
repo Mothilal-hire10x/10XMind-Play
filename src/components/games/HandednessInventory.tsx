@@ -79,6 +79,7 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
 
   const completeInventory = (finalResponses: Record<string, string>) => {
     // Calculate laterality quotient based on standard classification
+    // Step 1: Add the scores of the 4 items (X)
     let totalScore = 0
     const responseDetails: any[] = []
 
@@ -95,11 +96,10 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
       })
     })
 
-    // Calculate Laterality Quotient (LQ)
-    // LQ = (Sum of scores / (Number of questions × 2)) × 100
-    // Range: -100 to +100
-    const maxPossibleScore = HANDEDNESS_QUESTIONS.length * 2
-    const lateralityQuotient = (totalScore / maxPossibleScore) * 100
+    // Step 2: Convert to LQ
+    // LQ = (X / 8) × 100
+    // This gives an LQ between -100 and +100
+    const lateralityQuotient = (totalScore / 8) * 100
 
     // Determine handedness classification based on standard ranges
     let handedness = 'Mixed handers'
@@ -117,17 +117,16 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
     }
 
     const summary: GameSummary = {
-      score: Math.round(lateralityQuotient),
-      accuracy: 100, // Inventory is always 100% "accurate" as it's self-report
-      reactionTime: 0, // Not applicable for inventory
+      score: Math.round(lateralityQuotient * 10) / 10,
+      accuracy: 100,
+      reactionTime: 0,
       details: {
         lateralityQuotient: Math.round(lateralityQuotient * 10) / 10,
         handedness,
         classification,
         totalScore,
-        maxScore: maxPossibleScore,
         responses: responseDetails,
-        interpretation: `Laterality Quotient: ${Math.round(lateralityQuotient)} | Classification: ${classification}`
+        interpretation: `Laterality Quotient: ${Math.round(lateralityQuotient * 10) / 10} | Classification: ${classification}`
       }
     }
 
@@ -188,14 +187,14 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
                   </ul>
                 </div>
 
-                <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                {/* <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
                   <h4 className="font-semibold mb-2 text-sm">Standard Classification:</h4>
                   <div className="text-sm text-muted-foreground space-y-1">
                     <p><strong>Left handers:</strong> -100 to -61</p>
                     <p><strong>Mixed handers:</strong> -60 to 60</p>
                     <p><strong>Right handers:</strong> 61 to 100</p>
                   </div>
-                </div>
+                </div> */}
 
                 <div className="p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
                   <p className="text-sm text-amber-700 dark:text-amber-400">

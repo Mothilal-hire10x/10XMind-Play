@@ -169,6 +169,57 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
               </motion.div>
             )}
 
+            {/* Detailed Handedness Inventory Results */}
+            {gameName === 'Handedness Inventory' && summary.details && (
+              <motion.div
+                className="space-y-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+              >
+                <div className="bg-gradient-to-br from-red-500/10 to-rose-500/5 p-6 rounded-lg border border-red-500/20 text-center">
+                  <h3 className="text-lg font-semibold text-muted-foreground mb-2">Your laterality quotient score is</h3>
+                  <p className="text-5xl font-bold text-red-600 dark:text-red-400 mb-4">
+                    {summary.details.lateralityQuotient}
+                  </p>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-500/10 to-indigo-500/5 p-6 rounded-lg border border-blue-500/20">
+                  <h3 className="text-lg font-semibold text-center mb-4">The standard classification is as follows:</h3>
+                  <div className="bg-card/80 rounded-lg overflow-hidden border border-border">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-muted/50">
+                          <th className="p-3 text-left font-semibold border-r border-border">Handedness</th>
+                          <th className="p-3 text-left font-semibold">Laterality Quotient score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-t border-border">
+                          <td className="p-3 border-r border-border font-medium">Left handers:</td>
+                          <td className="p-3">-100 to -61</td>
+                        </tr>
+                        <tr className="border-t border-border">
+                          <td className="p-3 border-r border-border font-medium">Mixed handers:</td>
+                          <td className="p-3">-60 to 60</td>
+                        </tr>
+                        <tr className="border-t border-border">
+                          <td className="p-3 border-r border-border font-medium">Right handers:</td>
+                          <td className="p-3">61 to 100</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 p-4 rounded-lg border border-green-500/20 text-center">
+                  <p className="text-lg font-semibold text-foreground">
+                    Classification: <span className="text-green-600 dark:text-green-400">{summary.details.classification}</span>
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
             {/* Detailed Stroop Test Results */}
             {gameName === 'Stroop Test' && summary.details && (
               <motion.div
