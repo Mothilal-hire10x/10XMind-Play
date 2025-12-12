@@ -214,6 +214,69 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
               </motion.div>
             )}
 
+            {/* Detailed Dichotic Listening Test Results */}
+            {gameName === 'Dichotic Listening Test' && summary.details && (
+              <motion.div
+                className="space-y-4"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.45 }}
+              >
+                <div className="bg-gradient-to-br from-blue-500/10 to-cyan-500/5 p-6 rounded-lg border border-blue-500/20">
+                  <h3 className="text-lg font-semibold text-center mb-4">Ear Performance Scores</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-card/80 p-4 rounded-lg border border-border text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Right Ear Score</p>
+                      <p className="text-4xl font-bold text-blue-600 dark:text-blue-400">
+                        {summary.details.rightEarScore}%
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {summary.details.rightEarCorrect}/{summary.details.totalTrials} correct
+                      </p>
+                    </div>
+                    <div className="bg-card/80 p-4 rounded-lg border border-border text-center">
+                      <p className="text-sm text-muted-foreground mb-2">Left Ear Score</p>
+                      <p className="text-4xl font-bold text-purple-600 dark:text-purple-400">
+                        {summary.details.leftEarScore}%
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {summary.details.leftEarCorrect}/{summary.details.totalTrials} correct
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className={`p-6 rounded-lg border text-center ${
+                  summary.details.earAdvantage > 0 
+                    ? 'bg-gradient-to-br from-blue-500/10 to-cyan-500/5 border-blue-500/20'
+                    : summary.details.earAdvantage < 0
+                    ? 'bg-gradient-to-br from-purple-500/10 to-pink-500/5 border-purple-500/20'
+                    : 'bg-gradient-to-br from-gray-500/10 to-slate-500/5 border-gray-500/20'
+                }`}>
+                  <h3 className="text-lg font-semibold mb-2">Ear Advantage</h3>
+                  <p className="text-5xl font-bold mb-2" style={{
+                    color: summary.details.earAdvantage > 0 
+                      ? 'oklch(0.58 0.20 250)' 
+                      : summary.details.earAdvantage < 0 
+                      ? 'oklch(0.65 0.25 320)' 
+                      : 'oklch(0.60 0.10 240)'
+                  }}>
+                    {summary.details.earAdvantage > 0 ? '+' : ''}{summary.details.earAdvantage}%
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {summary.details.earAdvantage > 0 
+                      ? 'Right Ear Advantage' 
+                      : summary.details.earAdvantage < 0 
+                      ? 'Left Ear Advantage' 
+                      : 'No Ear Advantage'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    (Right Ear Score - Left Ear Score)
+                  </p>
+                </div>
+              </motion.div>
+            )}
+
             {/* Detailed Stroop Test Results */}
             {gameName === 'Stroop Test' && summary.details && (
               <motion.div

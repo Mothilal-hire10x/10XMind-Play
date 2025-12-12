@@ -220,6 +220,13 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
       const errorCount = TOTAL_TRIALS - totalCorrect
       const errorRate = (errorCount / TOTAL_TRIALS) * 100
       
+      // Calculate left and right ear scores
+      const leftEarCorrect = results.filter(r => r.details?.leftCorrect).length
+      const rightEarCorrect = results.filter(r => r.details?.rightCorrect).length
+      const leftEarScore = Math.round((leftEarCorrect / TOTAL_TRIALS) * 100)
+      const rightEarScore = Math.round((rightEarCorrect / TOTAL_TRIALS) * 100)
+      const earAdvantage = rightEarScore - leftEarScore
+      
       onComplete(results, {
         score: totalCorrect,
         accuracy: (totalCorrect / TOTAL_TRIALS) * 100,
@@ -228,7 +235,12 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
         errorRate,
         details: {
           totalTrials: TOTAL_TRIALS,
-          correctTrials: totalCorrect
+          correctTrials: totalCorrect,
+          leftEarScore,
+          rightEarScore,
+          earAdvantage,
+          leftEarCorrect,
+          rightEarCorrect
         }
       })
       return
@@ -315,7 +327,11 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
       response: `L:[${selectedLeftNumbers.sort((a, b) => a - b).join(',')}] R:[${selectedRightNumbers.sort((a, b) => a - b).join(',')}]`,
       correct,
       reactionTime,
-      trialType: correct ? 'both-correct' : leftCorrect ? 'left-only' : rightCorrect ? 'right-only' : 'both-wrong'
+      trialType: correct ? 'both-correct' : leftCorrect ? 'left-only' : rightCorrect ? 'right-only' : 'both-wrong',
+      details: {
+        leftCorrect,
+        rightCorrect
+      }
     }
 
     setResults(prev => [...prev, trialResult])
