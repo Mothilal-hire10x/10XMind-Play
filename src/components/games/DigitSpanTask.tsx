@@ -202,6 +202,7 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
         setConsecutiveFailures(0)
 
         if (consecutiveSuccesses + 1 >= 2) {
+          // Successfully completed 2 consecutive trials at this span level
           const newSpan = currentSpan + 1
           
           if (newSpan > MAX_SPAN) {
@@ -209,7 +210,7 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
             finishGame()
             return
           } else {
-            setMaxSpan(currentSpan)
+            setMaxSpan(currentSpan) // Update max span to current level
             setCurrentSpan(newSpan)
             setConsecutiveSuccesses(0)
             startNewTrial(false, newSpan)
@@ -221,7 +222,8 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
         setConsecutiveSuccesses(0)
 
         if (consecutiveFailures + 1 >= 2) {
-          setMaxSpan(Math.max(currentSpan - 1, INITIAL_SPAN - 1))
+          // Failed 2 consecutive trials - score is the last span where we succeeded 2 times
+          // maxSpan was set when we last succeeded 2 times consecutively
           finishGame()
           return
         }
@@ -245,13 +247,9 @@ export function DigitSpanTask({ onComplete, onExit, defaultMode }: DigitSpanTask
       ? allResults.reduce((sum, r) => sum + r.reactionTime, 0) / allResults.length
       : 0
 
-    // Calculate the correct max span: highest span length where user got at least one correct answer
-    const correctResults = allResults.filter(r => r.correct)
-    const highestCorrectSpan = correctResults.length > 0 
-      ? Math.max(...correctResults.map(r => r.spanLength))
-      : INITIAL_SPAN - 1
-    
-    const finalMaxSpan = highestCorrectSpan
+    // Calculate the correct max span based on the highest span where user got 2 consecutive correct trials
+    // This is tracked in the maxSpan state variable, which is updated only when 2 consecutive successes occur
+    const finalMaxSpan = maxSpan
 
     const trialResults: TrialResult[] = allResults.map((trial, idx) => ({
       stimulus: trial.sequence.join(' '),
