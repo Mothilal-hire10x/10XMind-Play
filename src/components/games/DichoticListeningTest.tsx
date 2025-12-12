@@ -15,7 +15,7 @@ interface DichoticListeningTestProps {
 // Available numbers (1-10 excluding 7)
 const AVAILABLE_NUMBERS = [1, 2, 3, 4, 5, 6, 8, 9, 10]
 const PRACTICE_TRIALS = 2
-const TOTAL_TRIALS = 10
+const TOTAL_TRIALS = 30
 
 type GamePhase = 'instructions' | 'audio-check' | 'practice' | 'test'
 type TrialPhase = 'ready' | 'playing' | 'responding'
@@ -215,32 +215,44 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
       }
       
       // Complete the game
-      const totalCorrect = results.filter(r => r.correct).length
-      const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
-      const errorCount = TOTAL_TRIALS - totalCorrect
-      const errorRate = (errorCount / TOTAL_TRIALS) * 100
+      // Scoring: Each trial has 2 targets (left and right digit)
+      // Raw scores: L (left ear correct), R (right ear correct), T (total = L + R)
+      const leftEarCorrect = results.filter(r => r.details?.leftCorrect).length // L out of 30
+      const rightEarCorrect = results.filter(r => r.details?.rightCorrect).length // R out of 30
+      const totalCorrect = leftEarCorrect + rightEarCorrect // T = L + R, out of 60
       
-      // Calculate left and right ear scores
-      const leftEarCorrect = results.filter(r => r.details?.leftCorrect).length
-      const rightEarCorrect = results.filter(r => r.details?.rightCorrect).length
+      const avgRT = results.reduce((sum, r) => sum + r.reactionTime, 0) / results.length
+      
+      // Percent scores:
+      // Left% = (L / 30) × 100
+      // Right% = (R / 30) × 100
+      // Total% = (T / 60) × 100
       const leftEarScore = Math.round((leftEarCorrect / TOTAL_TRIALS) * 100)
       const rightEarScore = Math.round((rightEarCorrect / TOTAL_TRIALS) * 100)
+      const totalPercent = Math.round((totalCorrect / (TOTAL_TRIALS * 2)) * 100)
+      
+      // Right-ear advantage (REA) = Right% − Left%
       const earAdvantage = rightEarScore - leftEarScore
+      
+      const errorCount = (TOTAL_TRIALS * 2) - totalCorrect // errors out of 60 total targets
+      const errorRate = (errorCount / (TOTAL_TRIALS * 2)) * 100
       
       onComplete(results, {
         score: totalCorrect,
-        accuracy: (totalCorrect / TOTAL_TRIALS) * 100,
+        accuracy: totalPercent,
         reactionTime: avgRT,
         errorCount,
         errorRate,
         details: {
           totalTrials: TOTAL_TRIALS,
-          correctTrials: totalCorrect,
-          leftEarScore,
-          rightEarScore,
-          earAdvantage,
-          leftEarCorrect,
-          rightEarCorrect
+          totalTargets: TOTAL_TRIALS * 2, // 60 total targets
+          correctTrials: results.filter(r => r.correct).length, // both ears correct
+          totalCorrect, // T = L + R
+          leftEarScore, // Left%
+          rightEarScore, // Right%
+          earAdvantage, // REA
+          leftEarCorrect, // L raw count
+          rightEarCorrect // R raw count
         }
       })
       return
@@ -715,7 +727,7 @@ export function DichoticListeningTest({ onComplete, onExit }: DichoticListeningT
               <>
                 <Progress value={(currentTrial / TOTAL_TRIALS) * 100} className="h-2 flex-1" />
                 <span className="text-sm font-medium text-muted-foreground min-w-20 text-right">
-                  {currentTrial}/{TOTAL_TRIALS}
+                  {Math.min(currentTrial, TOTAL_TRIALS)}/{TOTAL_TRIALS}
                 </span>
               </>
             )}
