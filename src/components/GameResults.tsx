@@ -211,12 +211,6 @@ export function GameResults({ gameName, summary, onContinue }: GameResultsProps)
                     </table>
                   </div>
                 </div>
-
-                <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/5 p-4 rounded-lg border border-green-500/20 text-center">
-                  <p className="text-lg font-semibold text-foreground">
-                    Classification: <span className="text-green-600 dark:text-green-400">{summary.details.classification}</span>
-                  </p>
-                </div>
               </motion.div>
             )}
 
