@@ -21,24 +21,18 @@ interface HandednessQuestion {
 }
 
 const HANDEDNESS_QUESTIONS: HandednessQuestion[] = [
-  { id: 'writing', question: 'Which hand do you use for writing?', activity: 'Writing' },
-  { id: 'drawing', question: 'Which hand do you use for drawing?', activity: 'Drawing' },
-  { id: 'throwing', question: 'Which hand do you use for throwing a ball?', activity: 'Throwing' },
-  { id: 'scissors', question: 'Which hand holds the scissors when cutting?', activity: 'Using Scissors' },
-  { id: 'toothbrush', question: 'Which hand holds the toothbrush?', activity: 'Brushing Teeth' },
-  { id: 'knife', question: 'Which hand holds the knife (without fork)?', activity: 'Using Knife Alone' },
-  { id: 'spoon', question: 'Which hand holds the spoon when eating?', activity: 'Using Spoon' },
-  { id: 'broom', question: 'Which hand is at the top of the broom when sweeping?', activity: 'Sweeping (Top Hand)' },
-  { id: 'match', question: 'Which hand strikes the match?', activity: 'Striking a Match' },
-  { id: 'box_lid', question: 'Which hand opens a box lid?', activity: 'Opening Box' }
+  { id: 'writing', question: 'Writing', activity: 'Writing' },
+  { id: 'throwing', question: 'Throwing', activity: 'Throwing' },
+  { id: 'toothbrush', question: 'Toothbrush', activity: 'Toothbrush' },
+  { id: 'spoon', question: 'Spoon', activity: 'Spoon' }
 ]
 
 const RESPONSE_OPTIONS = [
-  { value: 'always-left', label: 'Always Left', score: -2 },
-  { value: 'usually-left', label: 'Usually Left', score: -1 },
-  { value: 'no-preference', label: 'No Preference', score: 0 },
-  { value: 'usually-right', label: 'Usually Right', score: 1 },
-  { value: 'always-right', label: 'Always Right', score: 2 }
+  { value: 'always-left', label: 'Always left', score: -2 },
+  { value: 'usually-left', label: 'Usually left', score: -1 },
+  { value: 'both-equally', label: 'Both equally', score: 0 },
+  { value: 'usually-right', label: 'Usually right', score: 1 },
+  { value: 'always-right', label: 'Always right', score: 2 }
 ]
 
 export function HandednessInventory({ onComplete, onExit }: HandednessInventoryProps) {
@@ -84,7 +78,7 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
   }
 
   const completeInventory = (finalResponses: Record<string, string>) => {
-    // Calculate laterality quotient
+    // Calculate laterality quotient based on standard classification
     let totalScore = 0
     const responseDetails: any[] = []
 
@@ -101,17 +95,26 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
       })
     })
 
-    // Laterality Quotient (LQ) = (R-L)/(R+L) * 100
-    // Where R = sum of right responses, L = sum of left responses
-    // Simplified: LQ = (totalScore / maxScore) * 100
-    const maxScore = HANDEDNESS_QUESTIONS.length * 2 // max is +2 per question
-    const lateralityQuotient = (totalScore / maxScore) * 100
+    // Calculate Laterality Quotient (LQ)
+    // LQ = (Sum of scores / (Number of questions × 2)) × 100
+    // Range: -100 to +100
+    const maxPossibleScore = HANDEDNESS_QUESTIONS.length * 2
+    const lateralityQuotient = (totalScore / maxPossibleScore) * 100
 
-    // Determine handedness classification
-    let handedness = 'Mixed'
-    if (lateralityQuotient >= 40) handedness = 'Right-Handed'
-    else if (lateralityQuotient <= -40) handedness = 'Left-Handed'
-    else if (lateralityQuotient > -40 && lateralityQuotient < 40) handedness = 'Ambidextrous'
+    // Determine handedness classification based on standard ranges
+    let handedness = 'Mixed handers'
+    let classification = 'Mixed'
+    
+    if (lateralityQuotient >= 61) {
+      handedness = 'Right handers'
+      classification = 'Right-Handed'
+    } else if (lateralityQuotient <= -61) {
+      handedness = 'Left handers'
+      classification = 'Left-Handed'
+    } else {
+      handedness = 'Mixed handers'
+      classification = 'Ambidextrous'
+    }
 
     const summary: GameSummary = {
       score: Math.round(lateralityQuotient),
@@ -120,9 +123,11 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
       details: {
         lateralityQuotient: Math.round(lateralityQuotient * 10) / 10,
         handedness,
+        classification,
         totalScore,
-        maxScore,
-        responses: responseDetails
+        maxScore: maxPossibleScore,
+        responses: responseDetails,
+        interpretation: `Laterality Quotient: ${Math.round(lateralityQuotient)} | Classification: ${classification}`
       }
     }
 
@@ -157,8 +162,7 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
                 <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
                   <h3 className="font-semibold mb-2 text-lg">About This Assessment</h3>
                   <p className="text-muted-foreground leading-relaxed">
-                    The Edinburgh Handedness Inventory is a standardized questionnaire used to assess hand preference
-                    in performing everyday activities. This helps determine your lateral dominance.
+                    Please indicate your preferences in the use of hands in the following activities or objects.
                   </p>
                 </div>
 
@@ -167,23 +171,15 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
                   <ul className="space-y-2 text-muted-foreground">
                     <li className="flex items-start gap-2">
                       <Check className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" weight="bold" />
-                      <span>You will be asked about your hand preference for 10 common activities</span>
+                      <span>You will be asked about your hand preference for 4 common activities</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" weight="bold" />
-                      <span>For each activity, select which hand you prefer to use</span>
+                      <span>Select your preference: Always left, Usually left, Both equally, Usually right, or Always right</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" weight="bold" />
-                      <span>Choose "Always" if you would never use the other hand</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" weight="bold" />
-                      <span>Choose "Usually" if you use the other hand occasionally</span>
-                    </li>
-                    <li className="flex items-start gap-2">
-                      <Check className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" weight="bold" />
-                      <span>Choose "No Preference" if you use both hands equally</span>
+                      <span>Your responses will determine your Laterality Quotient score</span>
                     </li>
                     <li className="flex items-start gap-2">
                       <Check className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" weight="bold" />
@@ -192,10 +188,18 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
                   </ul>
                 </div>
 
+                <div className="p-4 bg-blue-500/10 rounded-lg border border-blue-500/20">
+                  <h4 className="font-semibold mb-2 text-sm">Standard Classification:</h4>
+                  <div className="text-sm text-muted-foreground space-y-1">
+                    <p><strong>Left handers:</strong> -100 to -61</p>
+                    <p><strong>Mixed handers:</strong> -60 to 60</p>
+                    <p><strong>Right handers:</strong> 61 to 100</p>
+                  </div>
+                </div>
+
                 <div className="p-4 bg-amber-500/10 rounded-lg border border-amber-500/20">
                   <p className="text-sm text-amber-700 dark:text-amber-400">
                     <strong>Note:</strong> There are no right or wrong answers. Answer honestly based on your natural preferences.
-                    The assessment takes approximately 2-3 minutes to complete.
                   </p>
                 </div>
               </div>
@@ -271,13 +275,15 @@ export function HandednessInventory({ onComplete, onExit }: HandednessInventoryP
               <Card className="p-6 sm:p-8 backdrop-blur-sm bg-card/95 border-2">
                 <div className="space-y-6">
                   {/* Question */}
-                  <div className="text-center space-y-2">
-                    <Badge variant="outline" className="mb-2">
-                      {question.activity}
-                    </Badge>
-                    <h3 className="text-2xl font-semibold">
-                      {question.question}
+                  <div className="text-center space-y-4">
+                    <h3 className="text-xl font-semibold text-muted-foreground mb-4">
+                      Please indicate your preferences in the use of hands in the following activities or objects
                     </h3>
+                    <div className="text-center">
+                      <h2 className="text-3xl font-bold mb-2">
+                        {question.activity}
+                      </h2>
+                    </div>
                   </div>
 
                   {/* Response Options */}
