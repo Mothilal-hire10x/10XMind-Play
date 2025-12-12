@@ -526,7 +526,7 @@ export function StroopTask({ onComplete, onExit }: StroopTaskProps) {
             )}
             <Progress value={(currentTrial / maxTrials) * 100} className="h-1.5 sm:h-2 flex-1" />
             <span className="text-xs sm:text-sm font-medium text-muted-foreground min-w-12 sm:min-w-20 text-right flex-shrink-0">
-              {currentTrial}/{maxTrials}
+              {Math.min(currentTrial, maxTrials)}/{maxTrials}
             </span>
           </div>
           {gamePhase === 'test' && (
