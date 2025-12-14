@@ -94,6 +94,20 @@ router.post(
       });
     } catch (error) {
       console.error('Signup error:', error);
+      
+      // Check for specific SQLite errors
+      if (error instanceof Error) {
+        if (error.message.includes('database is locked') || 
+            error.message.includes('SQLITE_BUSY')) {
+          return res.status(503).json({ 
+            error: 'Service temporarily busy, please try again in a moment' 
+          });
+        }
+        if (error.message.includes('UNIQUE constraint failed')) {
+          return res.status(400).json({ error: 'User already exists' });
+        }
+      }
+      
       res.status(500).json({ error: 'Internal server error' });
     }
   }
@@ -142,6 +156,17 @@ router.post(
       });
     } catch (error) {
       console.error('Login error:', error);
+      
+      // Check for specific SQLite errors
+      if (error instanceof Error) {
+        if (error.message.includes('database is locked') || 
+            error.message.includes('SQLITE_BUSY')) {
+          return res.status(503).json({ 
+            error: 'Service temporarily busy, please try again in a moment' 
+          });
+        }
+      }
+      
       res.status(500).json({ error: 'Internal server error' });
     }
   }

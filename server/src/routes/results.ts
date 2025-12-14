@@ -76,6 +76,17 @@ router.post(
       res.status(201).json({ result: toGameResultResponse(result) });
     } catch (error) {
       console.error('Save result error:', error);
+      
+      // Check for specific SQLite errors
+      if (error instanceof Error) {
+        if (error.message.includes('database is locked') || 
+            error.message.includes('SQLITE_BUSY')) {
+          return res.status(503).json({ 
+            error: 'Service temporarily busy, please try again in a moment' 
+          });
+        }
+      }
+      
       res.status(500).json({ error: 'Internal server error' });
     }
   }
