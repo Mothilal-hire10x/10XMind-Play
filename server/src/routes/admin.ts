@@ -1,7 +1,15 @@
 import express, { Response } from 'express';
-import { getDatabase } from '../utils/database';
+import { getDatabase } from '../utils/postgres-database';
 import { User, GameResult, UserResponse, GameResultResponse } from '../models/types';
 import { authenticateToken, requireAdmin, AuthRequest } from '../middleware/auth';
+
+// PostgreSQL configuration
+const PG_HOST = process.env.POSTGRES_HOST || 'localhost';
+const PG_PORT = parseInt(process.env.POSTGRES_PORT || '5432');
+const PG_DATABASE = process.env.POSTGRES_DB || 'tenxmind';
+const PG_USER = process.env.POSTGRES_USER || 'tenxmind_user';
+const PG_PASSWORD = process.env.POSTGRES_PASSWORD || 'tenxmind_secure_password_2024';
+const PG_MAX_POOL = parseInt(process.env.POSTGRES_MAX_POOL || '100');
 
 const router = express.Router();
 
@@ -65,7 +73,7 @@ function toGameResultResponseWithUser(result: GameResultWithUser): GameResultRes
 
 // GET /api/admin/users - Get all users
 router.get('/users', async (req: AuthRequest, res: Response) => {
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
 
   try {
     const users = await db.all<User>('SELECT * FROM users ORDER BY created_at DESC');
@@ -79,7 +87,7 @@ router.get('/users', async (req: AuthRequest, res: Response) => {
 // GET /api/admin/users/:id - Get specific user
 router.get('/users/:id', async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
 
   try {
     const user = await db.get<User>('SELECT * FROM users WHERE id = ?', [id]);
@@ -98,7 +106,7 @@ router.get('/users/:id', async (req: AuthRequest, res: Response) => {
 // DELETE /api/admin/users/:id - Delete a user
 router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
 
   try {
     // Prevent deleting admin user
@@ -123,7 +131,7 @@ router.delete('/users/:id', async (req: AuthRequest, res: Response) => {
 
 // GET /api/admin/results - Get all results with user details
 router.get('/results', async (req: AuthRequest, res: Response) => {
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
 
   try {
     const results = await db.all<GameResultWithUser>(
@@ -147,7 +155,7 @@ router.get('/results', async (req: AuthRequest, res: Response) => {
 // GET /api/admin/results/user/:userId - Get results for a specific user with user details
 router.get('/results/user/:userId', async (req: AuthRequest, res: Response) => {
   const { userId } = req.params;
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
 
   try {
     const results = await db.all<GameResultWithUser>(
@@ -172,12 +180,13 @@ router.get('/results/user/:userId', async (req: AuthRequest, res: Response) => {
 
 // GET /api/admin/stats - Get overall statistics
 router.get('/stats', async (req: AuthRequest, res: Response) => {
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
 
   try {
     // Get total users
     const userCountResult = await db.get<{ count: number }>(
-      'SELECT COUNT(*) as count FROM users WHERE role = "student"'
+      'SELECT COUNT(*) as count FROM users WHERE role = $1',
+      ['student']
     );
 
     // Get total results
@@ -199,10 +208,10 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
     const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
     const recentActivity = await db.all<{ date: string; count: number }>(
       `SELECT 
-        DATE(completed_at / 1000, 'unixepoch') as date, 
+        TO_CHAR(TO_TIMESTAMP(completed_at / 1000), 'YYYY-MM-DD') as date, 
         COUNT(*) as count 
       FROM game_results 
-      WHERE completed_at > ? 
+      WHERE completed_at > $1 
       GROUP BY date 
       ORDER BY date DESC`,
       [sevenDaysAgo]
@@ -225,7 +234,7 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
 // DELETE /api/admin/results/:id - Delete any result
 router.delete('/results/:id', async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
 
   try {
     const result = await db.get<GameResult>('SELECT * FROM game_results WHERE id = ?', [id]);
@@ -245,14 +254,14 @@ router.delete('/results/:id', async (req: AuthRequest, res: Response) => {
 
 // POST /api/admin/reset - Reset all data (dangerous!)
 router.post('/reset', async (req: AuthRequest, res: Response) => {
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
 
   try {
     // Delete all results
     await db.run('DELETE FROM game_results');
 
     // Delete all non-admin users
-    await db.run('DELETE FROM users WHERE role != "admin"');
+    await db.run('DELETE FROM users WHERE role != $1', ['admin']);
 
     // Delete all sessions
     await db.run('DELETE FROM sessions');

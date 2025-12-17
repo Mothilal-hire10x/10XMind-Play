@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { body, validationResult } from 'express-validator';
-import { getDatabase } from '../utils/database';
+import { getUnifiedDatabase } from '../utils/unified-database';
 import { User, UserResponse } from '../models/types';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { randomBytes } from 'crypto';
@@ -25,10 +25,13 @@ function toUserResponse(user: User): UserResponse {
 
 // Helper function to generate JWT
 function generateToken(user: User): string {
+  const secret: string = process.env.JWT_SECRET || 'default-secret-key';
+  const expiresIn: string = process.env.JWT_EXPIRES_IN || '7d';
+  // @ts-ignore - TypeScript JWT signature type issue
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role },
-    process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    secret,
+    { expiresIn: expiresIn }
   );
 }
 
@@ -49,61 +52,94 @@ router.post(
     }
 
     const { email, password, rollNo, name, dob } = req.body;
-    const db = getDatabase(process.env.DATABASE_PATH!);
+    const db = getUnifiedDatabase();
 
     try {
-      // Check if user already exists
-      const existingUser = await db.get<User>(
-        'SELECT * FROM users WHERE email = ?',
-        [email]
-      );
+      // Use transaction to prevent race conditions
+      const result = await db.executeTransaction(async (client) => {
+        // Check if user already exists (case-insensitive)
+        const existingUser = client 
+          ? await db.getInTransaction!<User>(
+              client,
+              'SELECT * FROM users WHERE LOWER(email) = LOWER(?)',
+              [email]
+            )
+          : await db.get<User>(
+              'SELECT * FROM users WHERE LOWER(email) = LOWER(?)',
+              [email]
+            );
 
-      if (existingUser) {
-        return res.status(400).json({ error: 'User already exists' });
-      }
+        if (existingUser) {
+          throw new Error('USER_EXISTS');
+        }
 
-      // Hash password
-      const hashedPassword = await bcrypt.hash(password, 10);
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-      // Create user
-      const userId = `user_${randomBytes(16).toString('hex')}`;
-      const now = Date.now();
+        // Create user
+        const userId = `user_${randomBytes(16).toString('hex')}`;
+        const now = Date.now();
 
-      await db.run(
-        `INSERT INTO users (id, email, password, role, roll_no, name, dob, created_at, updated_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [userId, email, hashedPassword, 'student', rollNo || null, name || null, dob || null, now, now]
-      );
+        if (client) {
+          await db.runInTransaction!(
+            client,
+            `INSERT INTO users (id, email, password, role, roll_no, name, dob, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, email.toLowerCase(), hashedPassword, 'student', rollNo || null, name || null, dob || null, now, now]
+          );
+        } else {
+          await db.run(
+            `INSERT INTO users (id, email, password, role, roll_no, name, dob, created_at, updated_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [userId, email.toLowerCase(), hashedPassword, 'student', rollNo || null, name || null, dob || null, now, now]
+          );
+        }
 
-      // Get created user
-      const user = await db.get<User>(
-        'SELECT * FROM users WHERE id = ?',
-        [userId]
-      );
+        // Get created user
+        const user = client
+          ? await db.getInTransaction!<User>(
+              client,
+              'SELECT * FROM users WHERE id = ?',
+              [userId]
+            )
+          : await db.get<User>(
+              'SELECT * FROM users WHERE id = ?',
+              [userId]
+            );
 
-      if (!user) {
-        return res.status(500).json({ error: 'Failed to create user' });
-      }
+        if (!user) {
+          throw new Error('FAILED_TO_CREATE_USER');
+        }
+
+        return user;
+      });
 
       // Generate token
-      const token = generateToken(user);
+      const token = generateToken(result);
 
       res.status(201).json({
-        user: toUserResponse(user),
+        user: toUserResponse(result),
         token
       });
     } catch (error) {
       console.error('Signup error:', error);
       
-      // Check for specific SQLite errors
+      // Check for specific errors
       if (error instanceof Error) {
+        if (error.message === 'USER_EXISTS') {
+          return res.status(400).json({ error: 'User already exists' });
+        }
+        if (error.message === 'FAILED_TO_CREATE_USER') {
+          return res.status(500).json({ error: 'Failed to create user' });
+        }
         if (error.message.includes('database is locked') || 
             error.message.includes('SQLITE_BUSY')) {
           return res.status(503).json({ 
             error: 'Service temporarily busy, please try again in a moment' 
           });
         }
-        if (error.message.includes('UNIQUE constraint failed')) {
+        if (error.message.includes('UNIQUE constraint failed') || 
+            error.message.includes('duplicate key')) {
           return res.status(400).json({ error: 'User already exists' });
         }
       }
@@ -127,12 +163,12 @@ router.post(
     }
 
     const { email, password } = req.body;
-    const db = getDatabase(process.env.DATABASE_PATH!);
+    const db = getUnifiedDatabase();
 
     try {
-      // Find user
+      // Find user (case-insensitive email lookup)
       const user = await db.get<User>(
-        'SELECT * FROM users WHERE email = ?',
+        'SELECT * FROM users WHERE LOWER(email) = LOWER(?)',
         [email]
       );
 
@@ -174,7 +210,7 @@ router.post(
 
 // GET /api/auth/me - Get current user
 router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getUnifiedDatabase();
 
   try {
     const user = await db.get<User>(
@@ -203,7 +239,7 @@ router.post('/logout', authenticateToken, async (req: AuthRequest, res: Response
 // PATCH /api/auth/consent - Update user consent date
 router.patch('/consent', authenticateToken, async (req: AuthRequest, res: Response) => {
   const { consentDate } = req.body;
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getUnifiedDatabase();
 
   try {
     const now = Date.now();

@@ -1,6 +1,6 @@
 import express, { Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { getDatabase } from '../utils/database';
+import { getUnifiedDatabase } from '../utils/unified-database';
 import { GameResult, GameResultResponse } from '../models/types';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { randomBytes } from 'crypto';
@@ -41,49 +41,92 @@ router.post(
     }
 
     const { gameId, score, accuracy, reactionTime, errorCount, errorRate, details } = req.body;
-    const db = getDatabase(process.env.DATABASE_PATH!);
+    const db = getUnifiedDatabase();
 
     try {
-      const resultId = `result_${randomBytes(16).toString('hex')}`;
-      const now = Date.now();
+      // Use transaction to ensure atomic INSERT + SELECT under high concurrency
+      const result = await db.executeTransaction(async (client) => {
+        const resultId = `result_${randomBytes(16).toString('hex')}`;
+        const now = Date.now();
 
-      await db.run(
-        `INSERT INTO game_results (id, user_id, game_id, score, accuracy, reaction_time, error_count, error_rate, details, completed_at) 
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          resultId,
-          req.user!.id,
-          gameId,
-          score,
-          accuracy,
-          reactionTime,
-          errorCount !== undefined ? errorCount : null,
-          errorRate !== undefined ? errorRate : null,
-          details ? JSON.stringify(details) : null,
-          now
-        ]
-      );
+        if (client) {
+          await db.runInTransaction!(
+            client,
+            `INSERT INTO game_results (id, user_id, game_id, score, accuracy, reaction_time, error_count, error_rate, details, completed_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              resultId,
+              req.user!.id,
+              gameId,
+              score,
+              accuracy,
+              reactionTime,
+              errorCount !== undefined ? errorCount : null,
+              errorRate !== undefined ? errorRate : null,
+              details ? JSON.stringify(details) : null,
+              now
+            ]
+          );
 
-      const result = await db.get<GameResult>(
-        'SELECT * FROM game_results WHERE id = ?',
-        [resultId]
-      );
+          const savedResult = await db.getInTransaction!<GameResult>(
+            client,
+            'SELECT * FROM game_results WHERE id = ?',
+            [resultId]
+          );
 
-      if (!result) {
-        return res.status(500).json({ error: 'Failed to save result' });
-      }
+          if (!savedResult) {
+            throw new Error('FAILED_TO_SAVE_RESULT');
+          }
+
+          return savedResult;
+        } else {
+          await db.run(
+            `INSERT INTO game_results (id, user_id, game_id, score, accuracy, reaction_time, error_count, error_rate, details, completed_at) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              resultId,
+              req.user!.id,
+              gameId,
+              score,
+              accuracy,
+              reactionTime,
+              errorCount !== undefined ? errorCount : null,
+              errorRate !== undefined ? errorRate : null,
+              details ? JSON.stringify(details) : null,
+              now
+            ]
+          );
+
+          const savedResult = await db.get<GameResult>(
+            'SELECT * FROM game_results WHERE id = ?',
+            [resultId]
+          );
+
+          if (!savedResult) {
+            throw new Error('FAILED_TO_SAVE_RESULT');
+          }
+
+          return savedResult;
+        }
+      });
 
       res.status(201).json({ result: toGameResultResponse(result) });
     } catch (error) {
       console.error('Save result error:', error);
       
-      // Check for specific SQLite errors
+      // Check for specific errors
       if (error instanceof Error) {
+        if (error.message === 'FAILED_TO_SAVE_RESULT') {
+          return res.status(500).json({ error: 'Failed to save result' });
+        }
         if (error.message.includes('database is locked') || 
             error.message.includes('SQLITE_BUSY')) {
           return res.status(503).json({ 
             error: 'Service temporarily busy, please try again in a moment' 
           });
+        }
+        if (error.message.includes('foreign key constraint')) {
+          return res.status(400).json({ error: 'Invalid user or game reference' });
         }
       }
       
@@ -94,7 +137,7 @@ router.post(
 
 // GET /api/results - Get all results for current user
 router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getUnifiedDatabase();
 
   try {
     const results = await db.all<GameResult>(
@@ -112,7 +155,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res: Response) => {
 // GET /api/results/:gameId - Get results for a specific game
 router.get('/:gameId', authenticateToken, async (req: AuthRequest, res: Response) => {
   const { gameId } = req.params;
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getUnifiedDatabase();
 
   try {
     const results = await db.all<GameResult>(
@@ -130,7 +173,7 @@ router.get('/:gameId', authenticateToken, async (req: AuthRequest, res: Response
 // DELETE /api/results/:id - Delete a result
 router.delete('/:id', authenticateToken, async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
-  const db = getDatabase(process.env.DATABASE_PATH!);
+  const db = getUnifiedDatabase();
 
   try {
     // Verify the result belongs to the user

@@ -15,6 +15,13 @@ export default defineConfig({
   server: {
     host: process.env.VITE_HOST || '0.0.0.0',
     port: resolvedPort,
+    strictPort: true,
+    allowedHosts: ['10xmindplay.mothilal.xyz', 'localhost'],
+    hmr: {
+      clientPort: 443,
+      protocol: 'wss',
+      host: '10xmindplay.mothilal.xyz',
+    },
   },
   plugins: [
     react(),

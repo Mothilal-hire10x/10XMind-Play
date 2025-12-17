@@ -5,8 +5,9 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import path from 'path';
 
-import { getDatabase } from './utils/database';
-import { seedDatabase } from './utils/seed';
+import { getDatabase } from './utils/postgres-database';
+import { runMigrations } from './utils/postgres-migrate';
+import { initializeDatabase } from './utils/unified-database';
 
 import authRoutes from './routes/auth';
 import resultsRoutes from './routes/results';
@@ -18,7 +19,14 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const DB_PATH = process.env.DATABASE_PATH || path.join(__dirname, '../database.sqlite');
+
+// PostgreSQL configuration
+const PG_HOST = process.env.POSTGRES_HOST || 'localhost';
+const PG_PORT = parseInt(process.env.POSTGRES_PORT || '5432');
+const PG_DATABASE = process.env.POSTGRES_DB || 'tenxmind';
+const PG_USER = process.env.POSTGRES_USER || 'tenxmind_user';
+const PG_PASSWORD = process.env.POSTGRES_PASSWORD || 'tenxmind_secure_password_2024';
+const PG_MAX_POOL = parseInt(process.env.POSTGRES_MAX_POOL || '100');
 
 // Security middleware
 app.use(helmet());
@@ -29,13 +37,18 @@ app.use(cors({
   credentials: true
 }));
 
-// Rate limiting - Increase for high concurrency
+// Rate limiting - Increase for high concurrency and load testing
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // Increased from 500 to 1000 requests per IP per window
+  max: 5000, // Increased to 5000 requests per IP per 15 minutes for high load
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for localhost and internal network during testing
+    const ip = req.ip || '';
+    return ip === '::1' || ip === '127.0.0.1' || ip.startsWith('::ffff:127.0.0.1');
+  }
 });
 app.use(limiter);
 
@@ -49,12 +62,19 @@ app.use('/api/results', resultsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ai', aiRoutes);
 
-// Health check endpoint
+// Health check endpoint with database pool stats
 app.get('/api/health', (req, res) => {
+  const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
+  const poolStats = db.getPoolStats();
+  
   res.json({ 
     status: 'ok', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
+    environment: process.env.NODE_ENV || 'development',
+    database: {
+      type: 'PostgreSQL',
+      poolConnections: poolStats
+    }
   });
 });
 
@@ -75,19 +95,33 @@ app.use((req, res) => {
 // Initialize database and start server
 async function startServer() {
   try {
-    // Connect to database
-    const db = getDatabase(DB_PATH);
-    await db.connect();
+    console.log('🔄 Connecting to database...');
+    console.log(`   Type: ${process.env.DATABASE_TYPE || 'sqlite'}`);
+    
+    if (process.env.DATABASE_TYPE === 'postgres') {
+      console.log(`   Host: ${PG_HOST}:${PG_PORT}`);
+      console.log(`   Database: ${PG_DATABASE}`);
+      console.log(`   Max Pool Size: ${PG_MAX_POOL}`);
+    }
+    
+    // Initialize unified database (connects automatically)
+    await initializeDatabase();
+    console.log('✅ Database connected and initialized');
 
-    // Run migrations and seed (keep connection open)
-    await seedDatabase(true);
+    // Run migrations if PostgreSQL
+    if (process.env.DATABASE_TYPE === 'postgres') {
+      console.log('🔄 Running PostgreSQL migrations...');
+      await runMigrations(true);
+      console.log('✅ Database migrations completed');
+    }
 
     // Start server
     app.listen(PORT, () => {
       console.log('');
       console.log('🚀 ========================================');
       console.log(`✅ Server running on http://localhost:${PORT}`);
-      console.log(`✅ Database: ${DB_PATH}`);
+      console.log(`✅ Database: PostgreSQL (${PG_HOST}:${PG_PORT})`);
+      console.log(`✅ Connection Pool: ${PG_MAX_POOL} max connections`);
       console.log(`✅ Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log('🚀 ========================================');
       console.log('');
@@ -116,15 +150,25 @@ async function startServer() {
 // Handle shutdown gracefully
 process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down server...');
-  const db = getDatabase(DB_PATH);
-  await db.close();
+  try {
+    const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
+    await db.close();
+    console.log('✅ Database connections closed');
+  } catch (error) {
+    console.error('Error closing database:', error);
+  }
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\n🛑 Shutting down server...');
-  const db = getDatabase(DB_PATH);
-  await db.close();
+  try {
+    const db = getDatabase(PG_HOST, PG_PORT, PG_DATABASE, PG_USER, PG_PASSWORD, PG_MAX_POOL);
+    await db.close();
+    console.log('✅ Database connections closed');
+  } catch (error) {
+    console.error('Error closing database:', error);
+  }
   process.exit(0);
 });
 

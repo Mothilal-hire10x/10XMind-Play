@@ -1,7 +1,15 @@
 import { Router, Response } from 'express';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 import { chatWithGemini, chatWithGeminiStream, getQuickSuggestions } from '../services/gemini';
-import { getDatabase } from '../utils/database';
+import { getUnifiedDatabase } from '../utils/unified-database';
+
+// PostgreSQL configuration
+const PG_HOST = process.env.POSTGRES_HOST || 'localhost';
+const PG_PORT = parseInt(process.env.POSTGRES_PORT || '5432');
+const PG_DATABASE = process.env.POSTGRES_DB || 'tenxmind';
+const PG_USER = process.env.POSTGRES_USER || 'tenxmind_user';
+const PG_PASSWORD = process.env.POSTGRES_PASSWORD || 'tenxmind_secure_password_2024';
+const PG_MAX_POOL = parseInt(process.env.POSTGRES_MAX_POOL || '100');
 
 const router = Router();
 
@@ -47,12 +55,15 @@ router.post('/chat', authenticateToken, async (req: AuthRequest, res) => {
 
     // Check for API key
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'AI service not configured' });
+    if (!apiKey || apiKey === 'your_gemini_api_key_here' || apiKey.length < 10) {
+      return res.status(503).json({ 
+        error: 'AI service not configured', 
+        message: 'Please set GEMINI_API_KEY environment variable to use AI features' 
+      });
     }
 
     // Get user data and results
-    const db = getDatabase(process.env.DATABASE_PATH || 'database.sqlite');
+    const db = getUnifiedDatabase();
     const user: any = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
     const results = await db.all(
       'SELECT * FROM game_results WHERE user_id = ? ORDER BY completed_at DESC',
@@ -112,15 +123,18 @@ router.post('/chat/stream', authenticateToken, async (req: AuthRequest, res: Res
 
     // Check for API key
     const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return res.status(500).json({ error: 'AI service not configured' });
+    if (!apiKey || apiKey === 'your_gemini_api_key_here' || apiKey.length < 10) {
+      return res.status(503).json({ 
+        error: 'AI service not configured', 
+        message: 'Please set GEMINI_API_KEY environment variable to use AI features' 
+      });
     }
 
     // Get user data and results
-    const db = getDatabase(process.env.DATABASE_PATH || 'database.sqlite');
-    const user: any = await db.get('SELECT * FROM users WHERE id = ?', [userId]);
+    const db = getUnifiedDatabase();
+    const user: any = await db.get('SELECT * FROM users WHERE id = $1', [userId]);
     const results = await db.all(
-      'SELECT * FROM game_results WHERE user_id = ? ORDER BY completed_at DESC',
+      'SELECT * FROM game_results WHERE user_id = $1 ORDER BY completed_at DESC',
       [userId]
     );
 
@@ -182,9 +196,9 @@ router.post('/chat/stream', authenticateToken, async (req: AuthRequest, res: Res
 router.get('/suggestions', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const userId = req.user!.id;
-    const db = getDatabase(process.env.DATABASE_PATH || 'database.sqlite');
+    const db = getUnifiedDatabase();
     const results = await db.all(
-      'SELECT id FROM game_results WHERE user_id = ? LIMIT 1',
+      'SELECT id FROM game_results WHERE user_id = $1 LIMIT 1',
       [userId]
     );
 
