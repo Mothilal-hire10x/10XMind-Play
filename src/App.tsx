@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { AuthProvider, useAuth } from '@/lib/auth-context'
 import { ThemeProvider } from '@/lib/theme-context'
-import { trackConversion } from '@/lib/mixpanel'
 import { resultsAPI } from '@/lib/api-client'
 import { GameResult, TrialResult, GameSummary } from '@/lib/types'
 import { AuthScreen } from '@/components/AuthScreen'
@@ -126,10 +125,6 @@ function AppContent() {
         summary.errorRate,
         { trials, ...summary.details }
       )
-      
-      // Track game completion as a conversion
-      const game = getGameById(selectedGameId!)
-      trackConversion('game_completion', summary.score)
       
       setCurrentGameSummary(summary)
       setScreen('results')

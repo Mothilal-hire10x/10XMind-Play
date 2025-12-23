@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@/lib/types'
 import { authAPI, getToken } from '@/lib/api-client'
-import { trackSignUp, trackSignIn } from '@/lib/mixpanel'
 
 interface AuthContextType {
   user: User | null
@@ -42,9 +41,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const newUser = await authAPI.signup(email, password, rollNo, name, dob)
       setUser(newUser)
-      
-      trackSignUp(newUser.id, newUser.email, name, rollNo, dob)
-      
       return true
     } catch (error) {
       console.error('Signup failed:', error)
@@ -56,15 +52,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const loggedInUser = await authAPI.login(email, password)
       setUser(loggedInUser)
-      
-      trackSignIn(loggedInUser.id, true)
-      
       return true
     } catch (error) {
       console.error('Login failed:', error)
-      
-      trackSignIn(0, false)
-      
       return false
     }
   }
