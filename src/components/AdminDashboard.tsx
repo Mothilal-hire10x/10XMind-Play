@@ -6,7 +6,7 @@ import { GAMES } from '@/lib/games'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive, Trash, Warning, Eye, CalendarBlank, Clock, CheckCircle, XCircle, Brain, Sparkle } from '@phosphor-icons/react'
+import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive, Trash, Warning, Eye, CalendarBlank, Clock, CheckCircle, XCircle, Brain, Sparkle, Files, ClipboardText } from '@phosphor-icons/react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
@@ -35,6 +35,10 @@ import {
   downloadPDF, 
   downloadStudentSummaryCSV, 
   downloadGameSummaryCSV,
+  downloadTestWiseReports,
+  downloadCompletionSummaryCSV,
+  generateCompletionStats,
+  CompletionStats,
   ExportData 
 } from '@/lib/export-utils'
 import { downloadJSON } from '@/lib/storage-utils'
@@ -139,6 +143,8 @@ export function AdminDashboard() {
   const [showDetailsDialog, setShowDetailsDialog] = useState(false)
   const [selectedResultDetails, setSelectedResultDetails] = useState<GameResult | null>(null)
   const [showResultDetailsDialog, setShowResultDetailsDialog] = useState(false)
+  const [showCompletionDialog, setShowCompletionDialog] = useState(false)
+  const [completionStats, setCompletionStats] = useState<CompletionStats | null>(null)
 
   // Fetch all data on mount
   useEffect(() => {
@@ -351,6 +357,50 @@ export function AdminDashboard() {
     }
   }
 
+  const handleViewCompletionStats = () => {
+    const exportData: ExportData = {
+      students,
+      results: gameResults || [],
+      selectedStudent: 'all',
+      selectedGame: 'all'
+    }
+    const stats = generateCompletionStats(exportData)
+    setCompletionStats(stats)
+    setShowCompletionDialog(true)
+  }
+
+  const handleDownloadTestWiseReports = async () => {
+    const exportData: ExportData = {
+      students,
+      results: gameResults || [],
+      selectedStudent: 'all',
+      selectedGame: 'all'
+    }
+    try {
+      await downloadTestWiseReports(exportData)
+      toast.success('Test-wise reports ZIP downloaded successfully')
+    } catch (error) {
+      toast.error('Failed to generate test-wise reports')
+      console.error('Test-wise export error:', error)
+    }
+  }
+
+  const handleDownloadCompletionSummary = () => {
+    const exportData: ExportData = {
+      students,
+      results: gameResults || [],
+      selectedStudent: 'all',
+      selectedGame: 'all'
+    }
+    try {
+      downloadCompletionSummaryCSV(exportData, `completion-summary-${new Date().toISOString().split('T')[0]}.csv`)
+      toast.success('Completion summary CSV downloaded')
+    } catch (error) {
+      toast.error('Failed to generate completion summary')
+      console.error('Completion summary error:', error)
+    }
+  }
+
   const handleResetStorage = async () => {
     try {
       await adminAPI.resetDatabase()
@@ -448,8 +498,27 @@ export function AdminDashboard() {
                       <FileCsv size={16} className="text-purple-600" />
                       <span>Game Summary (CSV)</span>
                     </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleDownloadTestWiseReports} className="gap-2 cursor-pointer">
+                      <Files size={16} className="text-teal-600" />
+                      <span>Test-wise Reports (ZIP)</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleDownloadCompletionSummary} className="gap-2 cursor-pointer">
+                      <ClipboardText size={16} className="text-orange-600" />
+                      <span>Completion Summary (CSV)</span>
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="outline" 
+                  onClick={handleViewCompletionStats}
+                  className="gap-2 border-teal-500/50 hover:bg-teal-500/10 hover:text-teal-600 hover:border-teal-500"
+                >
+                  <ClipboardText size={16} />
+                  Completion Stats
+                </Button>
               </motion.div>
               <ThemeToggle />
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
@@ -1838,6 +1907,196 @@ export function AdminDashboard() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Test Completion Statistics Dialog */}
+      <Dialog open={showCompletionDialog} onOpenChange={setShowCompletionDialog}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl">
+              <ClipboardText size={24} className="text-teal-600" />
+              Test Completion Statistics
+            </DialogTitle>
+            <DialogDescription>
+              Overview of student test completion status across all {GAMES.length} tests
+            </DialogDescription>
+          </DialogHeader>
+
+          {completionStats && (
+            <div className="space-y-6 mt-4">
+              {/* Summary Cards */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Card className="border-2">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-center">
+                      <Users size={24} className="mx-auto text-primary mb-1" />
+                      <p className="text-2xl font-bold">{completionStats.totalStudents}</p>
+                      <p className="text-xs text-muted-foreground">Total Students</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-2">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-center">
+                      <Brain size={24} className="mx-auto text-blue-600 mb-1" />
+                      <p className="text-2xl font-bold">{completionStats.totalTests}</p>
+                      <p className="text-xs text-muted-foreground">Total Tests</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-2 border-green-500/30 bg-green-500/5">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-center">
+                      <CheckCircle size={24} className="mx-auto text-green-600 mb-1" />
+                      <p className="text-2xl font-bold text-green-600">{completionStats.studentsCompletedAll.length}</p>
+                      <p className="text-xs text-muted-foreground">Completed All Tests</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="border-2 border-orange-500/30 bg-orange-500/5">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="text-center">
+                      <XCircle size={24} className="mx-auto text-orange-600 mb-1" />
+                      <p className="text-2xl font-bold text-orange-600">{completionStats.studentsIncomplete.length}</p>
+                      <p className="text-xs text-muted-foreground">Incomplete</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Per-Test Completion Stats */}
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <ChartBar size={20} className="text-primary" />
+                    Per-Test Completion Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {completionStats.testCompletionStats.map((test) => (
+                      <div key={test.gameId} className="space-y-1">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{test.gameName}</span>
+                          <span className="text-muted-foreground">
+                            {test.studentsCompleted} / {completionStats.totalStudents} students ({test.completionRate.toFixed(0)}%)
+                          </span>
+                        </div>
+                        <Progress value={test.completionRate} className="h-2" />
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Students Who Completed All Tests */}
+              <Card className="border-green-500/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2 text-green-600">
+                    <CheckCircle size={20} />
+                    Students Who Completed All {completionStats.totalTests} Tests ({completionStats.studentsCompletedAll.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {completionStats.studentsCompletedAll.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">No students have completed all tests yet</p>
+                  ) : (
+                    <div className="rounded-md border max-h-[200px] overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>#</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Roll Number</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead className="text-center">Tests</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {completionStats.studentsCompletedAll.map((student, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
+                              <TableCell className="font-medium">{student.name}</TableCell>
+                              <TableCell>{student.rollNo}</TableCell>
+                              <TableCell className="text-xs">{student.email}</TableCell>
+                              <TableCell className="text-center">
+                                <Badge className="bg-green-600">{student.completedTests}/{completionStats.totalTests}</Badge>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Students With Incomplete Tests */}
+              <Card className="border-orange-500/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-base flex items-center gap-2 text-orange-600">
+                    <XCircle size={20} />
+                    Students With Incomplete Tests ({completionStats.studentsIncomplete.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {completionStats.studentsIncomplete.length === 0 ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">All students have completed all tests! 🎉</p>
+                  ) : (
+                    <div className="rounded-md border max-h-[300px] overflow-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>#</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Roll Number</TableHead>
+                            <TableHead className="text-center">Completed</TableHead>
+                            <TableHead>Missing Tests</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {completionStats.studentsIncomplete.map((student, idx) => (
+                            <TableRow key={idx}>
+                              <TableCell className="font-mono text-xs">{idx + 1}</TableCell>
+                              <TableCell className="font-medium">{student.name}</TableCell>
+                              <TableCell>{student.rollNo}</TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                  {student.completedTests}/{completionStats.totalTests}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1 max-w-[300px]">
+                                  {student.missingTests.map((test, i) => (
+                                    <Badge key={i} variant="destructive" className="text-xs">
+                                      {test}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Export Buttons */}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={handleDownloadCompletionSummary} className="gap-2">
+                  <FileCsv size={16} className="text-green-600" />
+                  Download Summary CSV
+                </Button>
+                <Button onClick={handleDownloadTestWiseReports} className="gap-2 bg-gradient-to-r from-teal-600 to-cyan-600">
+                  <Files size={16} />
+                  Download Test-wise Reports (ZIP)
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

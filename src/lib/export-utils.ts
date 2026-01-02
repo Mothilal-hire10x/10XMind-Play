@@ -420,3 +420,246 @@ export function downloadGameSummaryCSV(data: ExportData, filename: string = 'gam
   link.click()
   document.body.removeChild(link)
 }
+
+// Generate CSV for a specific test with all student data
+export function generateTestWiseCSV(data: ExportData, gameId: string): string {
+  const { students, results } = data
+  const game = GAMES.find(g => g.id === gameId)
+  const gameResults = results.filter(r => r.gameId === gameId)
+  
+  const headers = [
+    'Student Email',
+    'Student Name',
+    'Roll Number',
+    'Date of Birth',
+    'Consent Date',
+    'Test Completed',
+    'Score',
+    'Accuracy (%)',
+    'Reaction Time (ms)',
+    'Error Count',
+    'Error Rate (%)',
+    'Completion Date'
+  ]
+
+  const rows = students
+    .filter(s => s.role === 'student')
+    .map(student => {
+      const studentResult = gameResults.find(r => r.userId === student.id)
+      
+      if (!studentResult) {
+        return [
+          student.email,
+          student.name || 'N/A',
+          student.rollNo || 'N/A',
+          student.dob || 'N/A',
+          student.consentDate || 'N/A',
+          'No',
+          'N/A',
+          'N/A',
+          'N/A',
+          'N/A',
+          'N/A',
+          'N/A'
+        ]
+      }
+
+      return [
+        student.email,
+        student.name || 'N/A',
+        student.rollNo || 'N/A',
+        student.dob || 'N/A',
+        student.consentDate || 'N/A',
+        'Yes',
+        studentResult.score.toFixed(2),
+        studentResult.accuracy.toFixed(2),
+        studentResult.reactionTime?.toFixed(0) || 'N/A',
+        studentResult.errorCount?.toString() || 'N/A',
+        studentResult.errorRate?.toFixed(2) || 'N/A',
+        new Date(studentResult.timestamp).toLocaleString()
+      ]
+    })
+
+  const csvContent = [
+    `Test: ${game?.name || 'Unknown'}`,
+    `Category: ${game?.category || 'Unknown'}`,
+    `Total Students: ${students.filter(s => s.role === 'student').length}`,
+    `Students Completed: ${gameResults.length}`,
+    '',
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n')
+
+  return csvContent
+}
+
+// Generate completion summary data
+export interface CompletionStats {
+  totalStudents: number
+  totalTests: number
+  testCompletionStats: {
+    gameId: string
+    gameName: string
+    studentsCompleted: number
+    completionRate: number
+    studentList: { email: string; name: string; rollNo: string; completed: boolean }[]
+  }[]
+  studentsCompletedAll: {
+    email: string
+    name: string
+    rollNo: string
+    completedTests: number
+    completedTestNames: string[]
+  }[]
+  studentsIncomplete: {
+    email: string
+    name: string
+    rollNo: string
+    completedTests: number
+    completedTestNames: string[]
+    missingTests: string[]
+  }[]
+}
+
+export function generateCompletionStats(data: ExportData): CompletionStats {
+  const { students, results } = data
+  const studentList = students.filter(s => s.role === 'student')
+  const totalTests = GAMES.length
+
+  // Per-test completion stats
+  const testCompletionStats = GAMES.map(game => {
+    const gameResults = results.filter(r => r.gameId === game.id)
+    const completedStudentIds = new Set(gameResults.map(r => r.userId))
+    
+    const studentList = students
+      .filter(s => s.role === 'student')
+      .map(student => ({
+        email: student.email,
+        name: student.name || 'N/A',
+        rollNo: student.rollNo || 'N/A',
+        completed: completedStudentIds.has(student.id)
+      }))
+
+    return {
+      gameId: game.id,
+      gameName: game.name,
+      studentsCompleted: completedStudentIds.size,
+      completionRate: studentList.length > 0 ? (completedStudentIds.size / studentList.length) * 100 : 0,
+      studentList
+    }
+  })
+
+  // Per-student completion tracking
+  const studentCompletionMap = studentList.map(student => {
+    const studentResults = results.filter(r => r.userId === student.id)
+    const completedGameIds = new Set(studentResults.map(r => r.gameId))
+    const completedTestNames = GAMES
+      .filter(g => completedGameIds.has(g.id))
+      .map(g => g.name)
+    const missingTests = GAMES
+      .filter(g => !completedGameIds.has(g.id))
+      .map(g => g.name)
+
+    return {
+      email: student.email,
+      name: student.name || 'N/A',
+      rollNo: student.rollNo || 'N/A',
+      completedTests: completedGameIds.size,
+      completedTestNames,
+      missingTests
+    }
+  })
+
+  const studentsCompletedAll = studentCompletionMap.filter(s => s.completedTests === totalTests)
+  const studentsIncomplete = studentCompletionMap.filter(s => s.completedTests < totalTests)
+
+  return {
+    totalStudents: studentList.length,
+    totalTests,
+    testCompletionStats,
+    studentsCompletedAll,
+    studentsIncomplete
+  }
+}
+
+// Generate completion summary CSV
+export function generateCompletionSummaryCSV(data: ExportData): string {
+  const stats = generateCompletionStats(data)
+  
+  const lines: string[] = [
+    '=== TEST COMPLETION SUMMARY ===',
+    `Total Students: ${stats.totalStudents}`,
+    `Total Tests: ${stats.totalTests}`,
+    `Students Completed All Tests: ${stats.studentsCompletedAll.length}`,
+    `Students with Incomplete Tests: ${stats.studentsIncomplete.length}`,
+    '',
+    '=== PER-TEST COMPLETION ===',
+    'Test Name,Students Completed,Completion Rate (%)'
+  ]
+
+  stats.testCompletionStats.forEach(test => {
+    lines.push(`"${test.gameName}",${test.studentsCompleted},${test.completionRate.toFixed(1)}`)
+  })
+
+  lines.push('')
+  lines.push('=== STUDENTS WHO COMPLETED ALL TESTS ===')
+  lines.push('Email,Name,Roll Number,Tests Completed')
+  
+  stats.studentsCompletedAll.forEach(student => {
+    lines.push(`"${student.email}","${student.name}","${student.rollNo}",${student.completedTests}`)
+  })
+
+  lines.push('')
+  lines.push('=== STUDENTS WITH INCOMPLETE TESTS ===')
+  lines.push('Email,Name,Roll Number,Tests Completed,Missing Tests')
+  
+  stats.studentsIncomplete.forEach(student => {
+    lines.push(`"${student.email}","${student.name}","${student.rollNo}",${student.completedTests},"${student.missingTests.join('; ')}"`)
+  })
+
+  return lines.join('\n')
+}
+
+export function downloadCompletionSummaryCSV(data: ExportData, filename: string = 'completion-summary.csv'): void {
+  const csv = generateCompletionSummaryCSV(data)
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  
+  link.setAttribute('href', url)
+  link.setAttribute('download', filename)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+// Download all test-wise CSVs as separate files (downloads as ZIP)
+export async function downloadTestWiseReports(data: ExportData): Promise<void> {
+  // Dynamic import JSZip for bundling efficiency
+  const JSZip = (await import('jszip')).default
+  const zip = new JSZip()
+  
+  // Add a CSV for each test
+  GAMES.forEach(game => {
+    const csv = generateTestWiseCSV(data, game.id)
+    const filename = `${game.name.replace(/[^a-zA-Z0-9]/g, '-')}-results.csv`
+    zip.file(filename, csv)
+  })
+
+  // Add completion summary
+  const completionSummary = generateCompletionSummaryCSV(data)
+  zip.file('completion-summary.csv', completionSummary)
+
+  // Generate and download ZIP
+  const blob = await zip.generateAsync({ type: 'blob' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  
+  link.setAttribute('href', url)
+  link.setAttribute('download', `test-wise-reports-${new Date().toISOString().split('T')[0]}.zip`)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
