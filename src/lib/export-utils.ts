@@ -694,3 +694,185 @@ export async function downloadTestWiseReports(data: ExportData): Promise<void> {
   link.click()
   document.body.removeChild(link)
 }
+
+// Generate specialized Stroop Test CSV with detailed metrics
+export function generateStroopDetailedCSV(data: ExportData): string {
+  const { students, results } = data
+  const studentIds = new Set(students.filter(s => s.role === 'student').map(s => s.id))
+  const stroopResults = results.filter(r => r.gameId === 'stroop' && studentIds.has(r.userId))
+  
+  const headers = [
+    'Roll Number',
+    'Student Name',
+    'Student Email',
+    'Congruent RT (ms)',
+    'Incongruent RT (ms)',
+    'Stroop Interference Effect (ms)',
+    'Congruent Errors',
+    'Incongruent Errors',
+    'Total Errors',
+    'Error Rate (%)',
+    'Accuracy (%)',
+    'Overall Score',
+    'Completion Date'
+  ]
+
+  // Sort students by roll number
+  const sortedStudents = sortStudentsByRollNo(students.filter(s => s.role === 'student'))
+
+  const rows = sortedStudents.map(student => {
+    const studentResult = stroopResults.find(r => r.userId === student.id)
+    
+    if (!studentResult) {
+      return [
+        student.rollNo || 'N/A',
+        student.name || 'N/A',
+        student.email,
+        'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'Not Completed'
+      ]
+    }
+
+    const details = studentResult.details || {}
+    
+    // Map field names from database (averageCongruentRT) or new format (congruentRT)
+    const congruentRT = details.congruentRT ?? details.averageCongruentRT ?? null
+    const incongruentRT = details.incongruentRT ?? details.averageIncongruentRT ?? null
+    
+    // Calculate stroop interference effect if not stored
+    let stroopEffect = details.stroopInterferenceEffect
+    if (stroopEffect === undefined && congruentRT !== null && incongruentRT !== null) {
+      stroopEffect = incongruentRT - congruentRT
+    }
+    
+    // Calculate errors from accuracy if not directly available
+    const congruentTrials = details.congruentTrials || 48
+    const incongruentTrials = details.incongruentTrials || 48
+    const congruentErrors = details.congruentErrors ?? 
+      (details.congruentAccuracy !== undefined ? Math.round(congruentTrials * (1 - details.congruentAccuracy)) : null)
+    const incongruentErrors = details.incongruentErrors ?? 
+      (details.incongruentAccuracy !== undefined ? Math.round(incongruentTrials * (1 - details.incongruentAccuracy)) : null)
+    
+    return [
+      student.rollNo || 'N/A',
+      student.name || 'N/A',
+      student.email,
+      congruentRT !== null ? congruentRT.toFixed(2) : 'N/A',
+      incongruentRT !== null ? incongruentRT.toFixed(2) : 'N/A',
+      stroopEffect !== null && stroopEffect !== undefined ? stroopEffect.toFixed(2) : 'N/A',
+      congruentErrors !== null ? congruentErrors.toString() : 'N/A',
+      incongruentErrors !== null ? incongruentErrors.toString() : 'N/A',
+      details.totalErrors?.toString() || studentResult.errorCount?.toString() || 'N/A',
+      studentResult.errorRate?.toFixed(2) || 'N/A',
+      studentResult.accuracy?.toFixed(2) || 'N/A',
+      studentResult.score?.toString() || 'N/A',
+      new Date(studentResult.timestamp).toLocaleString()
+    ]
+  })
+
+  const csvContent = [
+    'STROOP TEST - DETAILED RESULTS',
+    `Generated: ${new Date().toLocaleString()}`,
+    `Total Students: ${sortedStudents.length}`,
+    `Students Completed: ${stroopResults.length}`,
+    '',
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n')
+
+  return csvContent
+}
+
+// Generate specialized Trail Making Test CSV with detailed metrics
+export function generateTrailMakingDetailedCSV(data: ExportData): string {
+  const { students, results } = data
+  const studentIds = new Set(students.filter(s => s.role === 'student').map(s => s.id))
+  const tmtResults = results.filter(r => r.gameId === 'trail-making' && studentIds.has(r.userId))
+  
+  const headers = [
+    'Roll Number',
+    'Student Name',
+    'Student Email',
+    'TMT-A Time (ms)',
+    'TMT-B Time (ms)',
+    'B-A Difference (ms)',
+    'TMT-A Errors',
+    'TMT-B Errors',
+    'Total Errors',
+    'Error Rate (%)',
+    'Accuracy (%)',
+    'Total Time (ms)',
+    'Completion Date'
+  ]
+
+  // Sort students by roll number
+  const sortedStudents = sortStudentsByRollNo(students.filter(s => s.role === 'student'))
+
+  const rows = sortedStudents.map(student => {
+    const studentResult = tmtResults.find(r => r.userId === student.id)
+    
+    if (!studentResult) {
+      return [
+        student.rollNo || 'N/A',
+        student.name || 'N/A',
+        student.email,
+        'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'N/A', 'Not Completed'
+      ]
+    }
+
+    const details = studentResult.details || {}
+    
+    return [
+      student.rollNo || 'N/A',
+      student.name || 'N/A',
+      student.email,
+      details.tmtATime?.toString() || 'N/A',
+      details.tmtBTime?.toString() || 'N/A',
+      details.differenceScore?.toString() || 'N/A',
+      details.tmtAErrors?.toString() || 'N/A',
+      details.tmtBErrors?.toString() || 'N/A',
+      details.totalErrors?.toString() || studentResult.errorCount?.toString() || 'N/A',
+      studentResult.errorRate?.toFixed(2) || 'N/A',
+      studentResult.accuracy?.toFixed(2) || 'N/A',
+      studentResult.score?.toString() || 'N/A',
+      new Date(studentResult.timestamp).toLocaleString()
+    ]
+  })
+
+  const csvContent = [
+    'TRAIL MAKING TEST - DETAILED RESULTS',
+    `Generated: ${new Date().toLocaleString()}`,
+    `Total Students: ${sortedStudents.length}`,
+    `Students Completed: ${tmtResults.length}`,
+    '',
+    headers.join(','),
+    ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+  ].join('\n')
+
+  return csvContent
+}
+
+// Download specialized test reports (Stroop + Trail Making) as ZIP
+export async function downloadSpecializedTestReports(data: ExportData): Promise<void> {
+  const JSZip = (await import('jszip')).default
+  const zip = new JSZip()
+  
+  // Add Stroop Test detailed CSV
+  const stroopCSV = generateStroopDetailedCSV(data)
+  zip.file('Stroop-Test-Detailed-Results.csv', stroopCSV)
+  
+  // Add Trail Making Test detailed CSV
+  const tmtCSV = generateTrailMakingDetailedCSV(data)
+  zip.file('Trail-Making-Test-Detailed-Results.csv', tmtCSV)
+
+  // Generate and download ZIP
+  const blob = await zip.generateAsync({ type: 'blob' })
+  const link = document.createElement('a')
+  const url = URL.createObjectURL(blob)
+  
+  link.setAttribute('href', url)
+  link.setAttribute('download', `specialized-test-reports-${new Date().toISOString().split('T')[0]}.zip`)
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}

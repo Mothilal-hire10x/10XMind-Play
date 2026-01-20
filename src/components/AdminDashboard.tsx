@@ -38,6 +38,7 @@ import {
   downloadGameSummaryCSV,
   downloadTestWiseReports,
   downloadCompletionSummaryCSV,
+  downloadSpecializedTestReports,
   generateCompletionStats,
   CompletionStats,
   ExportData 
@@ -405,6 +406,22 @@ export function AdminDashboard() {
     }
   }
 
+  const handleDownloadSpecializedReports = async () => {
+    const exportData: ExportData = {
+      students,
+      results: gameResults || [],
+      selectedStudent: 'all',
+      selectedGame: 'all'
+    }
+    try {
+      await downloadSpecializedTestReports(exportData)
+      toast.success('Stroop & Trail Making reports ZIP downloaded')
+    } catch (error) {
+      toast.error('Failed to generate specialized reports')
+      console.error('Specialized export error:', error)
+    }
+  }
+
   const handleDownloadCompletionSummary = () => {
     const exportData: ExportData = {
       students,
@@ -558,6 +575,16 @@ export function AdminDashboard() {
                 >
                   <Database size={16} />
                   Download Data
+                </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="outline" 
+                  onClick={handleDownloadSpecializedReports}
+                  className="gap-2 border-pink-500/50 hover:bg-pink-500/10 hover:text-pink-600 hover:border-pink-500"
+                >
+                  <Brain size={16} />
+                  Stroop & TMT
                 </Button>
               </motion.div>
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
