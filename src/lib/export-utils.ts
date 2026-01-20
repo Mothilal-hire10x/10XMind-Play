@@ -2,6 +2,25 @@ import jsPDF from 'jspdf';
 import { GameResult, User } from './types';
 import { GAMES } from './games';
 
+// Helper function to extract last 3 digits of roll number for sorting
+export function getLastThreeDigits(rollNo: string | undefined | null): number {
+  if (!rollNo) return 999999; // Put entries without roll numbers at the end
+  const digits = rollNo.replace(/\D/g, ''); // Remove non-digit characters
+  if (digits.length === 0) return 999999;
+  const lastThree = digits.slice(-3);
+  return parseInt(lastThree, 10) || 999999;
+}
+
+// Helper function to sort by last 3 digits of roll number (ascending)
+export function sortByRollNo<T extends { rollNo?: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => getLastThreeDigits(a.rollNo) - getLastThreeDigits(b.rollNo));
+}
+
+// Helper function to sort students by last 3 digits of roll number
+export function sortStudentsByRollNo(students: User[]): User[] {
+  return [...students].sort((a, b) => getLastThreeDigits(a.rollNo) - getLastThreeDigits(b.rollNo));
+}
+
 export interface ExportData {
   students: User[]
   results: GameResult[]
@@ -34,7 +53,14 @@ export function generateCSV(data: ExportData): string {
     'Result ID'
   ]
 
-  const rows = filteredResults.map(result => {
+  // Sort results by roll number (last 3 digits ascending)
+  const sortedResults = [...filteredResults].sort((a, b) => {
+    const studentA = students.find(s => s.id === a.userId)
+    const studentB = students.find(s => s.id === b.userId)
+    return getLastThreeDigits(studentA?.rollNo || a.userRollNo) - getLastThreeDigits(studentB?.rollNo || b.userRollNo)
+  })
+
+  const rows = sortedResults.map(result => {
     const student = students.find(s => s.id === result.userId)
     const game = GAMES.find(g => g.id === result.gameId)
     const studentEmail = student?.email || result.userEmail || 'Unknown'
@@ -285,8 +311,10 @@ export function generateStudentSummaryCSV(data: ExportData): string {
     'Last Activity'
   ]
 
-  const rows = students
-    .filter(s => s.role === 'student')
+  // Sort students by roll number (last 3 digits ascending)
+  const sortedStudents = sortStudentsByRollNo(students.filter(s => s.role === 'student'))
+
+  const rows = sortedStudents
     .map(student => {
       const studentResults = results.filter(r => r.userId === student.id)
       
@@ -442,8 +470,10 @@ export function generateTestWiseCSV(data: ExportData, gameId: string): string {
     'Completion Date'
   ]
 
-  const rows = students
-    .filter(s => s.role === 'student')
+  // Sort students by roll number (last 3 digits ascending)
+  const sortedStudents = sortStudentsByRollNo(students.filter(s => s.role === 'student'))
+
+  const rows = sortedStudents
     .map(student => {
       const studentResult = gameResults.find(r => r.userId === student.id)
       
@@ -531,14 +561,14 @@ export function generateCompletionStats(data: ExportData): CompletionStats {
     const gameResults = results.filter(r => r.gameId === game.id)
     const completedStudentIds = new Set(gameResults.map(r => r.userId))
     
-    const studentList = students
-      .filter(s => s.role === 'student')
-      .map(student => ({
-        email: student.email,
-        name: student.name || 'N/A',
-        rollNo: student.rollNo || 'N/A',
-        completed: completedStudentIds.has(student.id)
-      }))
+    // Sort students by roll number (last 3 digits ascending)
+    const sortedStudents = sortStudentsByRollNo(students.filter(s => s.role === 'student'))
+    const studentList = sortedStudents.map(student => ({
+      email: student.email,
+      name: student.name || 'N/A',
+      rollNo: student.rollNo || 'N/A',
+      completed: completedStudentIds.has(student.id)
+    }))
 
     return {
       gameId: game.id,
@@ -570,8 +600,9 @@ export function generateCompletionStats(data: ExportData): CompletionStats {
     }
   })
 
-  const studentsCompletedAll = studentCompletionMap.filter(s => s.completedTests === totalTests)
-  const studentsIncomplete = studentCompletionMap.filter(s => s.completedTests < totalTests)
+  // Sort by roll number (last 3 digits ascending)
+  const studentsCompletedAll = sortByRollNo(studentCompletionMap.filter(s => s.completedTests === totalTests))
+  const studentsIncomplete = sortByRollNo(studentCompletionMap.filter(s => s.completedTests < totalTests))
 
   return {
     totalStudents: studentList.length,

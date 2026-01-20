@@ -6,7 +6,8 @@ import { GAMES } from '@/lib/games'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive, Trash, Warning, Eye, CalendarBlank, Clock, CheckCircle, XCircle, Brain, Sparkle, Files, ClipboardText } from '@phosphor-icons/react'
+import { SignOut, User as UserIcon, ChartBar, TrendUp, Trophy, Target, Users, FileCsv, FilePdf, DownloadSimple, Database, HardDrive, Trash, Warning, Eye, CalendarBlank, Clock, CheckCircle, XCircle, Brain, Sparkle, Files, ClipboardText, MagnifyingGlass } from '@phosphor-icons/react'
+import { Input } from '@/components/ui/input'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useInView } from 'react-intersection-observer'
@@ -41,7 +42,6 @@ import {
   CompletionStats,
   ExportData 
 } from '@/lib/export-utils'
-import { downloadJSON } from '@/lib/storage-utils'
 import { toast } from 'sonner'
 import {
   DropdownMenu,
@@ -145,6 +145,25 @@ export function AdminDashboard() {
   const [showResultDetailsDialog, setShowResultDetailsDialog] = useState(false)
   const [showCompletionDialog, setShowCompletionDialog] = useState(false)
   const [completionStats, setCompletionStats] = useState<CompletionStats | null>(null)
+  const [resultIdSearch, setResultIdSearch] = useState('')
+
+  // Handler to search for a result by ID
+  const handleSearchResultById = () => {
+    if (!resultIdSearch.trim()) {
+      toast.error('Please enter a Result ID')
+      return
+    }
+    
+    const foundResult = gameResults.find(r => r.id === resultIdSearch.trim())
+    
+    if (foundResult) {
+      setSelectedResultDetails(foundResult)
+      setShowResultDetailsDialog(true)
+      toast.success('Result found!')
+    } else {
+      toast.error('No result found with that ID')
+    }
+  }
 
   // Fetch all data on mount
   useEffect(() => {
@@ -343,14 +362,15 @@ export function AdminDashboard() {
   }
 
   const handleExportAllData = async () => {
+    const exportData: ExportData = {
+      students,
+      results: gameResults || [],
+      selectedStudent: 'all',
+      selectedGame: 'all'
+    }
     try {
-      const data = {
-        users: students,
-        gameResults: gameResults,
-        exportDate: new Date().toISOString()
-      }
-      downloadJSON(data, `10xmindplay-backup-${new Date().toISOString().split('T')[0]}.json`)
-      toast.success('Complete data backup downloaded')
+      await downloadTestWiseReports(exportData)
+      toast.success('Test-wise reports ZIP downloaded (sorted by roll number)')
     } catch (error) {
       toast.error('Failed to export data')
       console.error('Export data error:', error)
@@ -470,6 +490,26 @@ export function AdminDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2">
+              {/* Result ID Search */}
+              <div className="flex items-center gap-1">
+                <Input
+                  type="text"
+                  placeholder="Enter Result ID..."
+                  value={resultIdSearch}
+                  onChange={(e) => setResultIdSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearchResultById()}
+                  className="w-40 h-9 text-sm"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSearchResultById}
+                  className="gap-1 h-9 px-3 border-purple-500/50 hover:bg-purple-500/10 hover:text-purple-600 hover:border-purple-500"
+                >
+                  <MagnifyingGlass size={16} />
+                  Lookup
+                </Button>
+              </div>
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -509,6 +549,16 @@ export function AdminDashboard() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                <Button 
+                  variant="outline" 
+                  onClick={handleExportAllData}
+                  className="gap-2 border-indigo-500/50 hover:bg-indigo-500/10 hover:text-indigo-600 hover:border-indigo-500"
+                >
+                  <Database size={16} />
+                  Download Data
+                </Button>
               </motion.div>
               <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
                 <Button 
